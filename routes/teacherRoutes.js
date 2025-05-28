@@ -1,5 +1,4 @@
 const express = require("express");
-const bcrypt = require('bcryptjs');
 const router = express.Router();
 const qr = require('qr-image');
 const Attendance = require("../models/Attendance");
@@ -8,16 +7,17 @@ const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'production'
     ? 'https://self-attendance-system.onrender.com' 
     : 'http://localhost:9000');
 
-// Generate QR Code with timestamp
+// QR Code Generation
 router.get("/generate-qr", async (req, res) => {
     try {
-        const { date, subject, t } = req.query;
-        if (!date || !subject || !t) {
-            return res.status(400).json({ message: "Date, subject and timestamp required" });
+        const { date, subject } = req.query;
+        if (!date || !subject) {
+            return res.status(400).json({ message: "Date and subject required" });
         }
 
-        // Include timestamp in QR code URL
-        const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&t=${t}`;
+        // Use HTTPS always in production
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&t=${Date.now()}`;
         
         const qr_png = qr.image(attendanceUrl, { type: 'png' });
         res.setHeader('Content-type', 'image/png');
@@ -29,7 +29,7 @@ router.get("/generate-qr", async (req, res) => {
     }
 });
 
-// 📌 GET: Fetch all students
+// Get all students
 router.get("/students", async (req, res) => {
     try {
         const students = await Student.find({}, "studentID name");
@@ -40,7 +40,83 @@ router.get("/students", async (req, res) => {
     }
 });
 
-// Add to teacherRoutes.js
+// View attendance register
+router.get("/attendance-register", async (req, res) => {
+    try {
+        const { subject, date } = req.query;
+        if (!subject) return res.status(400).json({ message: "Subject is required" });
+        
+        // Get all students
+        const students = await Student.find({}, "studentID name");
+        
+        // Get attendance records for the specific date and subject
+        let attendanceRecords = [];
+        if (date) {
+            // If a specific date is provided
+            attendanceRecords = await Attendance.find({ subject, date })
+                .populate('student', 'studentID name');
+        } else {
+            // If no date provided, get all records for the subject
+            attendanceRecords = await Attendance.find({ subject })
+                .populate('student', 'studentID name');
+        }
+        
+        // Create a map of studentID to status
+        const attendanceMap = {};
+        attendanceRecords.forEach(record => {
+            attendanceMap[record.student.studentID] = 'present';
+        });
+        
+        // Prepare student data with attendance status
+        const studentData = students.map(student => {
+            return {
+                studentID: student.studentID,
+                name: student.name,
+                status: attendanceMap[student.studentID] || 'absent'
+            };
+        });
+        
+        res.json({
+            students: studentData,
+            subject,
+            date: date || 'all'
+        });
+
+    } catch (error) {
+        console.error("❌ Error in /attendance-register:", error);
+        res.status(500).json({ message: "❌ Server error" });
+    }
+});
+
+// Add new student
+router.post('/students', async (req, res) => {
+    try {
+        const { studentID, name, password } = req.body;
+        
+        // Check if student already exists
+        const existing = await Student.findOne({ studentID });
+        if (existing) {
+            return res.status(400).json({ message: "Student ID already exists" });
+        }
+        
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password || studentID, salt);
+        
+        // Create new student
+        const student = new Student({
+            studentID,
+            name,
+            password: hashedPassword
+        });
+        
+        await student.save();
+        res.json({ success: true, student });
+    } catch (error) {
+        console.error("Error adding student:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 // Reset student password
 router.post('/reset-password', async (req, res) => {
@@ -61,253 +137,6 @@ router.post('/reset-password', async (req, res) => {
     } catch (error) {
         console.error("Password reset error:", error);
         res.status(500).json({ message: "Server error" });
-    }
-});
-
-// Add new student
-router.post('/students', async (req, res) => {
-    try {
-        const { studentID, name, password } = req.body;
-        
-        // Check if student already exists
-        const existing = await Student.findOne({ studentID });
-        if (existing) {
-            return res.status(400).json({ message: "Student ID already exists" });
-        }
-        
-        // Create new student
-        const student = new Student({
-            studentID,
-            name,
-            password: req.body.password // Already hashed by middleware
-        });
-        
-        await student.save();
-        res.json({ success: true, student });
-    } catch (error) {
-        console.error("Error adding student:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// 📌 POST: Mark attendance
-router.post("/mark-attendance", async (req, res) => {
-    try {
-        let { date, subject, studentsPresent } = req.body;
-
-        date = date.trim();
-        const parsedDate = new Date(date);
-        if (isNaN(parsedDate)) {
-            return res.status(400).json({ message: "❌ Invalid date format" });
-        }
-        const formattedDate = parsedDate.toISOString().split("T")[0];
-
-        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id studentID");
-        const presentStudentIds = presentStudents.map(s => s._id);
-
-        let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
-        if (!attendanceRecord) {
-            attendanceRecord = new Attendance({
-                date: formattedDate,
-                subject,
-                presentStudents: presentStudentIds
-            });
-        } else {
-            attendanceRecord.presentStudents = presentStudentIds;
-        }
-
-        await attendanceRecord.save();
-        res.json({ message: "✅ Attendance submitted successfully!" });
-
-    } catch (error) {
-        console.error("❌ Error submitting attendance:", error);
-        res.status(500).json({ message: "❌ Server error while marking attendance" });
-    }
-});
-
-// 📌 PUT: Update attendance after submission
-router.put("/update-attendance", async (req, res) => {
-    try {
-        const { date, subject, studentsPresent } = req.body;
-        console.log("📩 Attendance update received:", req.body);
-
-        if (!date || !subject || !Array.isArray(studentsPresent)) {
-            return res.status(400).json({ message: "❌ Invalid attendance data" });
-        }
-
-        const formattedDate = new Date(date).toISOString().split("T")[0];
-
-        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id studentID");
-        const presentStudentIds = presentStudents.map(s => s._id);
-
-        const allStudents = await Student.find({}, "_id studentID");
-        const absentStudentIds = allStudents
-            .filter(s => !studentsPresent.includes(s.studentID))
-            .map(s => s._id);
-
-        let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
-        if (!attendanceRecord) {
-            return res.status(404).json({ message: "❌ Attendance record not found" });
-        }
-
-        attendanceRecord.presentStudents = presentStudentIds;
-        await attendanceRecord.save();
-        console.log("✅ Attendance record updated.");
-
-        await Student.updateMany(
-            { _id: { $in: presentStudentIds } },
-            { $inc: { [`subjects.${subject}.attendedClasses`]: 1, [`subjects.${subject}.totalClasses`]: 1 } }
-        );
-
-        await Student.updateMany(
-            { _id: { $in: absentStudentIds } },
-            { $inc: { [`subjects.${subject}.totalClasses`]: 1 } }
-        );
-
-        res.json({ message: "✅ Attendance updated successfully!" });
-
-    } catch (error) {
-        console.error("❌ Error updating attendance:", error);
-        res.status(500).json({ message: "❌ Server error while updating attendance" });
-    }
-});
-
-// 📌 GET: View full attendance by subject with dates, present & absent
-router.get("/attendance-register", async (req, res) => {
-    try {
-        const { subject } = req.query;
-        if (!subject) return res.status(400).json({ message: "Subject is required" });
-
-        // Get all attendance records for the subject
-        const attendances = await Attendance.find({ subject })
-            .populate('student', 'studentID name')
-            .sort({ date: 1 });
-
-        // Get all students
-        const students = await Student.find({}, "studentID name");
-
-        // Create attendance map
-        const attendanceMap = {};
-        const dates = [];
-        
-        // Only record students who actually marked attendance
-        attendances.forEach(record => {
-            // Skip records without student data
-            if (!record.student || !record.student.studentID) {
-                console.warn(`Skipping invalid attendance record: ${record._id}`);
-                return;
-            }
-            
-            const dateStr = record.date.toISOString().split('T')[0];
-            dates.push(dateStr);
-            
-            if (!attendanceMap[dateStr]) {
-                attendanceMap[dateStr] = [];
-            }
-            
-            attendanceMap[dateStr].push(record.student.studentID);
-        });
-
-        // Calculate attendance stats for each student
-        const uniqueDates = [...new Set(dates)].sort();
-        const totalClasses = uniqueDates.length;
-        
-        const processedStudents = students.map(student => {
-            const attendedClasses = uniqueDates.reduce((count, date) => {
-                const presentIDs = attendanceMap[date] || [];
-                return presentIDs.includes(student.studentID) ? count + 1 : count;
-            }, 0);
-            
-            const percentage = totalClasses > 0 
-                ? ((attendedClasses / totalClasses) * 100).toFixed(1)
-                : 0;
-
-            return {
-                studentID: student.studentID,
-                name: student.name,
-                attendedClasses,
-                totalClasses,
-                percentage
-            };
-        });
-
-        res.json({ 
-            students: processedStudents, 
-            subject, 
-            attendanceMap,
-            dates: uniqueDates
-        });
-
-    } catch (error) {
-        console.error("Error in /attendance-register:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// 📌 POST: Save attendance from table editor (used when manually editing)
-router.post('/save-attendance', async (req, res) => {
-    const { attendanceData, subject } = req.body;
-    const invalidEntries = [];
-
-    console.log("📥 Received attendance data:", attendanceData);
-    console.log("📚 Subject:", subject);
-
-    try {
-        for (let data of attendanceData) {
-            const { studentID, date, status } = data;
-            console.log(`📌 Processing: ${studentID} - ${date} - ${status}`);
-
-            const parsedDate = new Date(date);
-            if (!date || isNaN(parsedDate)) {
-                console.warn(`❌ Invalid date skipped for student ${studentID}`);
-                invalidEntries.push(studentID);
-                continue;
-            }
-
-            const formattedDate = parsedDate.toISOString().split("T")[0];
-            const student = await Student.findOne({ studentID });
-
-            if (!student) {
-                console.warn(`❌ Student not found: ${studentID}`);
-                invalidEntries.push(studentID);
-                continue;
-            }
-
-            let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
-            if (!attendanceRecord) {
-                attendanceRecord = new Attendance({
-                    date: formattedDate,
-                    subject,
-                    presentStudents: status === 'P' ? [student._id] : [],
-                });
-            } else {
-                const isPresent = attendanceRecord.presentStudents
-                    .some(id => id.toString() === student._id.toString());
-
-                if (status === 'P' && !isPresent) {
-                    attendanceRecord.presentStudents.push(student._id);
-                } else if (status === 'A' && isPresent) {
-                    attendanceRecord.presentStudents = attendanceRecord.presentStudents.filter(
-                        id => id.toString() !== student._id.toString()
-                    );
-                }
-            }
-
-            await attendanceRecord.save();
-        }
-
-        const message = invalidEntries.length > 0
-            ? `✅ Attendance saved, but skipped: ${invalidEntries.join(", ")}`
-            : "✅ All attendance saved successfully!";
-
-        res.json({ success: true, message });
-
-    } catch (error) {
-        console.error("❌ Error updating attendance:", error);
-        res.status(500).json({ success: false, message: '❌ Failed to update attendance.' });
     }
 });
 

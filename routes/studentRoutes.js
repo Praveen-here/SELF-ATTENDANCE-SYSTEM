@@ -39,7 +39,6 @@ router.get('/attendance-students', async (req, res) => {
 });
 
 // Student Attendance Submission
-// Student Attendance Submission
 router.post("/submit-attendance", async (req, res) => {
     try {
         const { studentID, date, subject, deviceId } = req.body;
@@ -48,24 +47,17 @@ router.post("/submit-attendance", async (req, res) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
+        // Validate date format (YYYY-MM-DD)
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
+        }
+
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Create date object in UTC
-        const dateObj = new Date(date);
-        if (isNaN(dateObj)) {
-            return res.status(400).json({ message: "Invalid date format" });
-        }
-        
-        const utcDate = new Date(Date.UTC(
-            dateObj.getUTCFullYear(),
-            dateObj.getUTCMonth(),
-            dateObj.getUTCDate()
-        ));
-        
         // Check for existing attendance by student
         const existingByStudent = await Attendance.findOne({ 
-            date: utcDate,
+            date,
             subject,
             student: student._id 
         });
@@ -76,7 +68,7 @@ router.post("/submit-attendance", async (req, res) => {
 
         // Check for existing attendance by device
         const existingByDevice = await Attendance.findOne({ 
-            date: utcDate,
+            date,
             subject,
             deviceId 
         });
@@ -87,25 +79,14 @@ router.post("/submit-attendance", async (req, res) => {
 
         // Create new attendance record
         const attendance = new Attendance({
-            date: utcDate,
+            date,
             subject,
             student: student._id,
-            deviceId
+            deviceId,
+            status: 'present'
         });
 
         await attendance.save();
-
-        // Update student's subject attendance count
-        const studentSubjects = student.subjects.get(subject) || {
-            totalClasses: 0,
-            attendedClasses: 0
-        };
-        
-        studentSubjects.totalClasses += 1;
-        studentSubjects.attendedClasses += 1;
-        student.subjects.set(subject, studentSubjects);
-        
-        await student.save();
 
         res.json({ success: true, message: "Attendance marked successfully" });
 
@@ -117,12 +98,6 @@ router.post("/submit-attendance", async (req, res) => {
             return res.status(400).json({ 
                 message: "Attendance already marked for this session" 
             });
-        }
-        
-        // Handle validation errors
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(e => e.message);
-            return res.status(400).json({ message: messages.join(', ') });
         }
         
         res.status(500).json({ message: "Server error: " + error.message });

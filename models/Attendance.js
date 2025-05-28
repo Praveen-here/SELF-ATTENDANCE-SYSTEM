@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const AttendanceSchema = new mongoose.Schema({
-    date: { type: Date, required: true },
+    date: { type: String, required: true }, // Store as YYYY-MM-DD
     subject: { type: String, required: true },
     student: { 
         type: mongoose.Schema.Types.ObjectId, 
@@ -9,6 +9,7 @@ const AttendanceSchema = new mongoose.Schema({
         required: true 
     },
     deviceId: { type: String, required: true },
+    status: { type: String, enum: ['present'], default: 'present' },
     timestamp: { type: Date, default: Date.now }
 });
 
