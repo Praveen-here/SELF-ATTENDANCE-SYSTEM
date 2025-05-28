@@ -1,224 +1,221 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Attendance</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        /* Added Custom CSS */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Attendance</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>
+    /* Custom CSS */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+    }
 
-        body {
-            background: linear-gradient(to right, #141e30, #243b55);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
+    body {
+        background: linear-gradient(to right, #141e30, #243b55);
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
 
+    .attendance-container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 500px;
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        font-size: 1.8rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    #search {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    #search:focus {
+        border-color: #00d9ff;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+    }
+
+    .student-list {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        overflow-y: auto;
+        max-height: 16rem;
+    }
+
+    .student-row {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .student-row:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .selected-row {
+        background: rgba(0, 217, 255, 0.2);
+    }
+
+    button {
+        background: linear-gradient(to right, #00d9ff, #0099ff);
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+    }
+
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+    }
+
+    #alert {
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
         .attendance-container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 10px;
-            padding: 2rem;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: 500px;
+            padding: 1.5rem;
         }
-
         h1 {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            font-size: 1.8rem;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 1.5rem;
         }
-
-        #search {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            transition: all 0.3s ease;
-        }
-
-        #search:focus {
-            border-color: #00d9ff;
-            box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
-        }
-
-        .student-list {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .student-row {
-            transition: all 0.3s ease;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .student-row:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        button {
-            background: linear-gradient(to right, #00d9ff, #0099ff);
-            transition: all 0.3s ease;
-            letter-spacing: 0.5px;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
-        }
-
-        #alert {
-            border-radius: 6px;
-            transition: all 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 768px) {
-            .attendance-container {
-                padding: 1.5rem;
-            }
-            
-            h1 {
-                font-size: 1.5rem;
-            }
-        }
-    </style>
+    }
+</style>
 </head>
 <body>
-    <div class="attendance-container">
-        <h1>Mark Attendance</h1>
-        
-        <div id="alert" class="hidden mb-4 p-3 rounded"></div>
-        
-        <div class="mb-4">
-            <input type="text" id="search" placeholder="Search by name or ID" 
-                   class="w-full p-3 rounded-lg mb-4">
-        </div>
-        
-        <div class="student-list h-64 overflow-y-auto">
-            <table class="w-full">
-                <tbody id="students" class="divide-y divide-gray-700"></tbody>
-            </table>
-        </div>
-        
-        <button onclick="submitAttendance()" 
-                class="mt-6 w-full py-3 rounded-lg text-white font-semibold">
-            Mark Attendance
-        </button>
+<div class="attendance-container">
+    <h1>Mark Attendance</h1>
+
+    <div id="alert" class="hidden mb-4 p-3 rounded"></div>
+
+    <div class="mb-4">
+        <input type="text" id="search" placeholder="Search by name or ID"
+               class="w-full p-3 rounded-lg mb-4">
     </div>
 
-    <!-- Original Script Section Remains Unchanged -->
-    <script>
-        let selectedStudent = null;
-        const urlParams = new URLSearchParams(window.location.search);
-        const subject = urlParams.get('subject');
-        const date = urlParams.get('date');
+    <div class="student-list">
+        <table class="w-full">
+            <tbody id="students"></tbody>
+        </table>
+    </div>
 
-        // Validate parameters on load
-        if (!date || !subject) {
-            document.body.innerHTML = `
-                <div class="p-4 text-center text-red-500">
-                    Invalid attendance link. Please scan a valid QR code.
-                </div>
-            `;
-        } else {
-            document.title = `${subject} Attendance - ${date}`;
-            loadStudents();
-        }
+    <button onclick="submitAttendance()"
+            class="mt-6 w-full py-3 rounded-lg text-white font-semibold">
+        Mark Attendance
+    </button>
+</div>
 
-        async function loadStudents() {
-            try {
-                const res = await fetch('/student/attendance-students');
-                if (!res.ok) throw new Error('Failed to fetch students');
-                
-                const students = await res.json();
-                const tbody = document.getElementById('students');
-                
-                tbody.innerHTML = students.map(student => `
-                    <tr class="cursor-pointer student-row" 
-                        data-id="${student.studentID}"
-                        onclick="selectStudent('${student.studentID}', '${student.name}')">
-                        <td class="p-3">${student.studentID}</td>
-                        <td class="p-3">${student.name}</td>
-                    </tr>
-                `).join('');
-                
-                // Add search functionality
-                document.getElementById('search').addEventListener('input', (e) => {
-                    const search = e.target.value.toLowerCase();
-                    document.querySelectorAll('.student-row').forEach(row => {
-                        const text = row.textContent.toLowerCase();
-                        row.style.display = text.includes(search) ? '' : 'none';
-                    });
+<script>
+    let selectedStudent = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const subject = urlParams.get('subject');
+    const date = urlParams.get('date');
+
+    // Validate parameters on load
+    if (!date || !subject) {
+        document.body.innerHTML = `
+            <div class="p-4 text-center text-red-500">
+                Invalid attendance link. Please scan a valid QR code.
+            </div>
+        `;
+    } else {
+        document.title = `${subject} Attendance - ${date}`;
+        loadStudents();
+    }
+
+    async function loadStudents() {
+        try {
+            const res = await fetch('/student/attendance-students');
+            if (!res.ok) throw new Error('Failed to fetch students');
+
+            const students = await res.json();
+            const tbody = document.getElementById('students');
+
+            tbody.innerHTML = students.map(student => `
+                <tr class="cursor-pointer student-row"
+                    data-id="${student.studentID}"
+                    onclick="selectStudent('${student.studentID}', '${student.name}', event)">
+                    <td class="p-3">${student.studentID}</td>
+                    <td class="p-3">${student.name}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('search').addEventListener('input', (e) => {
+                const search = e.target.value.toLowerCase();
+                document.querySelectorAll('.student-row').forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(search) ? '' : 'none';
                 });
-            } catch (error) {
-                showAlert('Error loading students', 'red');
-                console.error('Student load error:', error);
-            }
-        }
-
-        function selectStudent(id, name) {
-            selectedStudent = id;
-            document.querySelectorAll('.student-row').forEach(row => {
-                row.classList.remove('bg-blue-500/20');
             });
-            event.target.closest('tr').classList.add('bg-blue-500/20');
+        } catch (error) {
+            showAlert('Error loading students', 'red');
+            console.error('Student load error:', error);
+        }
+    }
+
+    function selectStudent(id, name, event) {
+        selectedStudent = id;
+        document.querySelectorAll('.student-row').forEach(row => {
+            row.classList.remove('selected-row');
+        });
+        event.currentTarget.classList.add('selected-row');
+    }
+
+    async function submitAttendance() {
+        if (!selectedStudent) {
+            return showAlert('Please select a student', 'red');
         }
 
-        async function submitAttendance() {
-            if (!selectedStudent) {
-                return showAlert('Please select a student', 'red');
-            }
+        try {
+            const res = await fetch('/student/submit-attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    studentID: selectedStudent,
+                    date,
+                    subject
+                })
+            });
 
-            try {
-                const res = await fetch('/student/submit-attendance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        studentID: selectedStudent,
-                        date,
-                        subject
-                    })
-                });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message);
-
-                showAlert('Attendance marked successfully!', 'green');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            } catch (error) {
-                const msg = error.message.includes('duplicate') 
-                    ? 'Attendance already marked for this session'
-                    : error.message;
-                showAlert(msg, 'red');
-            }
+            showAlert('Attendance marked successfully!', 'green');
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } catch (error) {
+            const msg = error.message.includes('duplicate')
+                ? 'Attendance already marked for this session'
+                : error.message;
+            showAlert(msg, 'red');
         }
+    }
 
-        function showAlert(message, color = 'blue') {
-            const alertDiv = document.getElementById('alert');
-            alertDiv.textContent = message;
-            alertDiv.className = `bg-${color}-500/20 text-${color}-300 p-3 rounded hidden`;
-            alertDiv.classList.remove('hidden');
-            setTimeout(() => alertDiv.classList.add('hidden'), 3000);
-        }
-    </script>
+    function showAlert(message, color = 'blue') {
+        const alertDiv = document.getElementById('alert');
+        alertDiv.textContent = message;
+        alertDiv.className = `bg-${color}-500/20 text-${color}-300 p-3 rounded`;
+        alertDiv.classList.remove('hidden');
+        setTimeout(() => alertDiv.classList.add('hidden'), 3000);
+    }
+</script>
 </body>
 </html>
