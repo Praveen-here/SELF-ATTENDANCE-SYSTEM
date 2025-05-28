@@ -1,20 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const qr = require('qr-image');
+const crypto = require('crypto');
 const Attendance = require("../models/Attendance");
 const Student = require("../models/student");
-const crypto = require('crypto');
-
 const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://self-attendance-system.onrender.com' 
     : 'http://localhost:9000');
-
-// Generate unique session token for QR codes
-function generateSessionToken() {
-    const timestamp = Date.now();
-    const randomString = crypto.randomBytes(16).toString('hex');
-    return `${timestamp}_${randomString}`;
-}
 
 // 📌 GET: Generate QR Code with session token
 router.get("/generate-qr", async (req, res) => {
@@ -24,13 +16,15 @@ router.get("/generate-qr", async (req, res) => {
             return res.status(400).json({ message: "Date and subject required" });
         }
 
-        // Generate unique session token for this QR code
-        const sessionToken = generateSessionToken();
-        
+        // Generate session token with timestamp and random string
+        const timestamp = Date.now();
+        const randomString = crypto.randomBytes(16).toString('hex');
+        const sessionToken = `${timestamp}_${randomString}`;
+
         // Create attendance URL with session token
-        const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&session=${encodeURIComponent(sessionToken)}`;
+        const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&session=${sessionToken}`;
         
-        console.log(`Generated QR for ${subject} on ${date} with session: ${sessionToken}`);
+        console.log(`📱 Generated QR for ${subject} on ${date} with session: ${sessionToken}`);
         
         const qr_png = qr.image(attendanceUrl, { type: 'png' });
         res.setHeader('Content-type', 'image/png');

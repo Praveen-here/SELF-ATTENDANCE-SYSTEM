@@ -73,50 +73,43 @@ router.post("/submit-attendance", async (req, res) => {
         const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         const userAgent = req.headers['user-agent'] || 'unknown';
 
-        console.log(`Attendance attempt - Student: ${studentID}, Device: ${deviceIdentifier}, IP: ${ipAddress}`);
+        console.log(`Attendance attempt - Student: ${studentID}, Device: ${deviceIdentifier}, IP: ${ipAddress}, Subject: ${subject}, Date: ${date}`);
 
-        // Check for existing attendance from the same device for this session
+        // Parse the date to ensure consistent comparison
+        const attendanceDate = new Date(date);
+        const dateString = attendanceDate.toISOString().split('T')[0]; // Get YYYY-MM-DD format
+
+        // FIXED: Check for existing attendance from the same device for this SPECIFIC subject and date
         const existingDeviceAttendance = await Attendance.findOne({
-            date: new Date(date),
-            subject,
-            deviceIdentifier
+            date: attendanceDate,
+            subject: subject,
+            deviceIdentifier: deviceIdentifier
         });
 
         if (existingDeviceAttendance) {
+            console.log(`❌ Device ${deviceIdentifier} already submitted for ${subject} on ${dateString}`);
             return res.status(400).json({ 
-                message: "Attendance already submitted from this device for this session." 
+                message: `Attendance already submitted from this device for ${subject} on ${dateString}.` 
             });
         }
 
-        // Check for existing attendance for this student
+        // FIXED: Check for existing attendance for this student for this SPECIFIC subject and date
         const existingStudentAttendance = await Attendance.findOne({
-            date: new Date(date),
-            subject,
+            date: attendanceDate,
+            subject: subject,
             student: student._id
         });
 
         if (existingStudentAttendance) {
+            console.log(`❌ Student ${studentID} already has attendance for ${subject} on ${dateString}`);
             return res.status(400).json({ 
-                message: "Attendance already marked for this student." 
-            });
-        }
-
-        // Check if this session token was already used (prevents QR reuse)
-        const existingSessionAttendance = await Attendance.findOne({
-            sessionToken,
-            date: new Date(date),
-            subject
-        });
-
-        if (existingSessionAttendance) {
-            return res.status(400).json({ 
-                message: "This QR code session has already been used. Please scan a fresh QR code." 
+                message: `Attendance already marked for ${studentID} in ${subject} on ${dateString}.` 
             });
         }
 
         // Create new attendance record with device tracking
         const attendance = new Attendance({
-            date: new Date(date),
+            date: attendanceDate,
             subject,
             student: student._id,
             deviceIdentifier,
@@ -138,7 +131,7 @@ router.post("/submit-attendance", async (req, res) => {
         student.subjects.set(subject, studentSubjects);
         await student.save();
 
-        console.log(`✅ Attendance marked successfully for ${studentID} from device ${deviceIdentifier}`);
+        console.log(`✅ Attendance marked successfully for ${studentID} in ${subject} on ${dateString} from device ${deviceIdentifier}`);
         res.json({ success: true, message: "Attendance marked successfully!" });
 
     } catch (error) {

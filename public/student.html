@@ -342,7 +342,7 @@
                 throw new Error(data.message);
             }
 
-            showAlert('Attendance marked successfully!', 'green');
+            showAlert(`Attendance marked successfully for ${subject}!`, 'green');
             
             // Clear selection and disable further submissions
             selectedStudent = null;
@@ -365,7 +365,7 @@
             
             let message = error.message;
             if (message.includes('already submitted') || message.includes('duplicate')) {
-                message = 'Attendance already submitted from this device or for this student.';
+                message = `Attendance already submitted for ${subject} today.`;
             } else if (message.includes('expired')) {
                 showExpiredSession();
                 return;
