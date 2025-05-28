@@ -140,6 +140,7 @@
     <h1 id="page-title">Mark Attendance</h1>
 
     <div id="alert" class="hidden mb-4 p-3 rounded"></div>
+    <div id="debug" class="hidden text-xs bg-gray-800 p-2 mt-2 rounded"></div>
 
     <!-- Login Form -->
     <div id="login-form" class="login-form">
@@ -154,7 +155,7 @@
         </button>
     </div>
 
-    <!-- Attendance Form (initially hidden) -->
+    <!-- Attendance Form -->
     <div id="attendance-form" class="hidden">
         <div class="mb-4">
             <input type="text" id="search" placeholder="Search by name or ID"
@@ -180,13 +181,24 @@
     const studentIdInput = document.getElementById('student-id');
     const passwordInput = document.getElementById('password');
     const searchInput = document.getElementById('search');
+    const debugDiv = document.getElementById('debug');
     
     let selectedStudent = null;
     const urlParams = new URLSearchParams(window.location.search);
     const subject = urlParams.get('subject');
     const date = urlParams.get('date');
-    const t = parseInt(urlParams.get('t')); // QR generation timestamp
+    const t = parseInt(urlParams.get('t'));
+
+    // Enable debug mode
+    const debugMode = true;
     
+    function debugLog(message) {
+        if (debugMode) {
+            debugDiv.classList.remove('hidden');
+            debugDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+        }
+    }
+
     // Validate parameters on load
     if (!date || !subject || !t) {
         document.body.innerHTML = `
@@ -194,13 +206,13 @@
                 Invalid attendance link. Please scan a valid QR code.
             </div>
         `;
-        // Don't initialize the rest of the app
+        debugLog("Invalid QR parameters");
         throw new Error("Invalid QR parameters");
     } 
     else {
-        // Check QR code expiration (10 minutes)
+        // Check QR code expiration
         const now = Date.now();
-        const expirationTime = 10 * 60 * 1000; // 10 minutes in ms
+        const expirationTime = 10 * 60 * 1000;
         
         if (now - t > expirationTime) {
             document.body.innerHTML = `
@@ -208,11 +220,12 @@
                     This QR code has expired. Please request a new one.
                 </div>
             `;
-            // Don't initialize the rest of the app
+            debugLog("QR code expired");
             throw new Error("QR code expired");
         }
         
         document.title = `${subject} Attendance - ${date}`;
+        debugLog("QR validated successfully");
     }
 
     // Generate device ID
@@ -220,17 +233,18 @@
     if (!deviceId) {
         deviceId = self.crypto.randomUUID();
         localStorage.setItem('deviceId', deviceId);
+        debugLog(`Generated new device ID: ${deviceId}`);
+    } else {
+        debugLog(`Using existing device ID: ${deviceId}`);
     }
 
-    // Show login form and hide attendance form initially
+    // Show login form initially
     document.getElementById('login-form').classList.remove('hidden');
     document.getElementById('attendance-form').classList.add('hidden');
 
     // Event Listeners
     loginButton.addEventListener('click', login);
-    if (submitButton) {
-        submitButton.addEventListener('click', submitAttendance);
-    }
+    submitButton.addEventListener('click', submitAttendance);
 
     // Login function
     async function login() {
@@ -242,7 +256,7 @@
         }
         
         try {
-            // Show loading state
+            debugLog(`Attempting login for: ${studentID}`);
             loginButton.disabled = true;
             loginButton.textContent = 'Logging in...';
             
@@ -255,17 +269,17 @@
             const data = await res.json();
             
             if (!res.ok) {
+                debugLog(`Login failed: ${data.message || res.statusText}`);
                 throw new Error(data.message || 'Login failed. Please check your credentials.');
             }
             
-            // On successful login
+            debugLog(`Login successful for: ${studentID}`);
             document.getElementById('login-form').classList.add('hidden');
             document.getElementById('attendance-form').classList.remove('hidden');
             loadStudents();
         } catch (error) {
             showAlert('Login failed: ' + error.message, 'red');
         } finally {
-            // Reset button state
             loginButton.disabled = false;
             loginButton.textContent = 'Login';
         }
@@ -274,8 +288,13 @@
     // Load students
     async function loadStudents() {
         try {
+            debugLog("Loading student list...");
             const res = await fetch('/student/attendance-students');
-            if (!res.ok) throw new Error('Failed to fetch students');
+            
+            if (!res.ok) {
+                const error = await res.text();
+                throw new Error(`Failed to fetch students: ${res.status} ${error}`);
+            }
 
             const students = await res.json();
             const tbody = document.getElementById('students');
@@ -289,19 +308,19 @@
                 </tr>
             `).join('');
 
+            debugLog(`Loaded ${students.length} students`);
+
             // Add search functionality
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => {
-                    const search = e.target.value.toLowerCase();
-                    document.querySelectorAll('.student-row').forEach(row => {
-                        const text = row.textContent.toLowerCase();
-                        row.style.display = text.includes(search) ? '' : 'none';
-                    });
+            searchInput.addEventListener('input', (e) => {
+                const search = e.target.value.toLowerCase();
+                document.querySelectorAll('.student-row').forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(search) ? '' : 'none';
                 });
-            }
+            });
         } catch (error) {
+            debugLog(`Error loading students: ${error.message}`);
             showAlert('Error loading students: ' + error.message, 'red');
-            console.error('Student load error:', error);
         }
     }
 
@@ -312,6 +331,7 @@
             row.classList.remove('selected-row');
         });
         event.currentTarget.classList.add('selected-row');
+        debugLog(`Selected student: ${name} (${id})`);
     }
 
     // Submit attendance
@@ -321,26 +341,33 @@
         }
 
         try {
+            debugLog(`Submitting attendance for: ${selectedStudent}`);
             submitButton.disabled = true;
             submitButton.textContent = 'Submitting...';
+            
+            const payload = {
+                studentID: selectedStudent,
+                date,
+                subject,
+                deviceId
+            };
+            
+            debugLog(`Payload: ${JSON.stringify(payload)}`);
             
             const res = await fetch('/student/submit-attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    studentID: selectedStudent,
-                    date,
-                    subject,
-                    deviceId
-                })
+                body: JSON.stringify(payload)
             });
 
             const data = await res.json();
             
             if (!res.ok) {
+                debugLog(`Submission failed: ${data.message || res.statusText}`);
                 throw new Error(data.message || 'Attendance submission failed');
             }
 
+            debugLog("Attendance submitted successfully");
             showAlert('Attendance marked successfully!', 'green');
             setTimeout(() => {
                 window.location.reload();
@@ -349,12 +376,12 @@
             const msg = error.message.includes('duplicate')
                 ? 'Attendance already marked for this session'
                 : error.message;
+                
+            debugLog(`Error: ${error.message}`);
             showAlert(msg, 'red');
         } finally {
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Mark Attendance';
-            }
+            submitButton.disabled = false;
+            submitButton.textContent = 'Mark Attendance';
         }
     }
 

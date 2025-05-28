@@ -3,6 +3,7 @@ const router = express.Router();
 const Student = require('../models/student');
 const Attendance = require('../models/Attendance');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 // Student login
 router.post('/login', async (req, res) => {
@@ -26,21 +27,12 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Get all students for attendance
-router.get('/attendance-students', async (req, res) => {
-    try {
-        const students = await Student.find({}, 'studentID name');
-        res.json(students);
-    } catch (err) {
-        console.error("Error fetching students:", err);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// Student Attendance Submission
+// Student Attendance Submission (Fixed)
 router.post("/submit-attendance", async (req, res) => {
     try {
         const { studentID, date, subject, deviceId } = req.body;
+        
+        console.log("Received attendance submission:", req.body);
         
         if (!studentID || !date || !subject || !deviceId) {
             return res.status(400).json({ message: "Missing required fields" });
@@ -49,31 +41,35 @@ router.post("/submit-attendance", async (req, res) => {
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Check for existing attendance by student
-        const existingByStudent = await Attendance.findOne({ 
-            date: new Date(date),
+        // Create date object in UTC
+        const dateObj = new Date(date);
+        const utcDate = new Date(Date.UTC(
+            dateObj.getFullYear(),
+            dateObj.getMonth(),
+            dateObj.getDate()
+        ));
+        
+        // Check for existing attendance
+        const existing = await Attendance.findOne({ 
+            date: utcDate,
             subject,
-            student: student._id 
+            $or: [
+                { student: student._id },
+                { deviceId }
+            ]
         });
         
-        if (existingByStudent) {
-            return res.status(400).json({ message: "Attendance already marked for this student" });
-        }
-
-        // Check for existing attendance by device
-        const existingByDevice = await Attendance.findOne({ 
-            date: new Date(date),
-            subject,
-            deviceId 
-        });
-        
-        if (existingByDevice) {
-            return res.status(400).json({ message: "Attendance already marked from this device" });
+        if (existing) {
+            const message = existing.student.equals(student._id) 
+                ? "Attendance already marked for this student"
+                : "Attendance already marked from this device";
+                
+            return res.status(400).json({ message });
         }
 
         // Create new attendance record
         const attendance = new Attendance({
-            date: new Date(date),
+            date: utcDate,
             subject,
             student: student._id,
             deviceId
@@ -90,12 +86,27 @@ router.post("/submit-attendance", async (req, res) => {
         studentSubjects.totalClasses += 1;
         studentSubjects.attendedClasses += 1;
         student.subjects.set(subject, studentSubjects);
+        
         await student.save();
 
         res.json({ success: true, message: "Attendance marked successfully" });
 
     } catch (error) {
-        console.error("Attendance error:", error);
+        console.error("Attendance submission error:", error);
+        
+        // Handle duplicate key error
+        if (error.code === 11000) {
+            return res.status(400).json({ 
+                message: "Attendance already marked for this session" 
+            });
+        }
+        
+        // Handle validation errors
+        if (error instanceof mongoose.Error.ValidationError) {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return res.status(400).json({ message: messages.join(', ') });
+        }
+        
         res.status(500).json({ message: "Server error" });
     }
 });
