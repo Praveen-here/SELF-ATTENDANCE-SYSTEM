@@ -171,24 +171,133 @@
     const date = urlParams.get('date');
     sessionToken = urlParams.get('session');
 
-    // Generate device fingerprint
-    function generateDeviceFingerprint() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.textBaseline = 'top';
-        ctx.font = '14px Arial';
-        ctx.fillText('Device fingerprint', 2, 2);
+    // Enhanced device fingerprint generation
+    async function generateDeviceFingerprint() {
+        const components = [];
         
-        const fingerprint = [
-            navigator.userAgent,
-            navigator.language,
-            screen.width + 'x' + screen.height,
-            new Date().getTimezoneOffset(),
-            navigator.platform,
-            canvas.toDataURL()
-        ].join('|');
+        // Basic browser info
+        components.push(navigator.userAgent || 'unknown');
+        components.push(navigator.language || 'unknown');
+        components.push(navigator.platform || 'unknown');
+        components.push(navigator.cookieEnabled ? 'cookies-enabled' : 'cookies-disabled');
         
-        return btoa(fingerprint).substring(0, 16);
+        // Screen properties
+        components.push(`${screen.width}x${screen.height}`);
+        components.push(`${screen.availWidth}x${screen.availHeight}`);
+        components.push(screen.colorDepth || 'unknown');
+        components.push(screen.pixelDepth || 'unknown');
+        
+        // Timezone
+        components.push(new Date().getTimezoneOffset().toString());
+        components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown');
+        
+        // Hardware info
+        components.push(navigator.hardwareConcurrency || 'unknown');
+        components.push(navigator.deviceMemory || 'unknown');
+        components.push(navigator.maxTouchPoints || 'unknown');
+        
+        // WebGL fingerprint
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (gl) {
+                const renderer = gl.getParameter(gl.RENDERER);
+                const vendor = gl.getParameter(gl.VENDOR);
+                components.push(renderer || 'webgl-unknown');
+                components.push(vendor || 'vendor-unknown');
+            }
+        } catch (e) {
+            components.push('webgl-error');
+        }
+        
+        // Canvas fingerprint
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(125, 1, 62, 20);
+            ctx.fillStyle = '#069';
+            ctx.fillText('Device fingerprint 🔒', 2, 15);
+            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+            ctx.fillText('Canvas test', 4, 45);
+            components.push(canvas.toDataURL());
+        } catch (e) {
+            components.push('canvas-error');
+        }
+        
+        // Audio context fingerprint
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const analyser = audioContext.createAnalyser();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(analyser);
+            analyser.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 10000;
+            gainNode.gain.value = 0;
+            
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            
+            components.push(Array.from(dataArray).slice(0, 10).join(','));
+            audioContext.close();
+        } catch (e) {
+            components.push('audio-error');
+        }
+        
+        // Media devices (if available)
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const deviceTypes = devices.map(d => d.kind).sort().join(',');
+                components.push(deviceTypes || 'no-media-devices');
+            }
+        } catch (e) {
+            components.push('media-devices-error');
+        }
+        
+        // Performance and memory info
+        if (performance && performance.memory) {
+            components.push(performance.memory.usedJSHeapSize?.toString() || 'heap-unknown');
+        }
+        
+        // Battery API (if available)
+        try {
+            if ('getBattery' in navigator) {
+                const battery = await navigator.getBattery();
+                components.push(`battery-${battery.level}-${battery.charging}`);
+            }
+        } catch (e) {
+            components.push('battery-error');
+        }
+        
+        // Network info
+        if (navigator.connection) {
+            components.push(navigator.connection.effectiveType || 'connection-unknown');
+            components.push(navigator.connection.downlink?.toString() || 'downlink-unknown');
+        }
+        
+        // Add current timestamp and random component for extra uniqueness
+        components.push(Date.now().toString());
+        components.push(Math.random().toString(36).substring(2, 15));
+        
+        // Create hash of all components
+        const fingerprint = await crypto.subtle.digest('SHA-256', 
+            new TextEncoder().encode(components.join('|'))
+        );
+        
+        const hashArray = Array.from(new Uint8Array(fingerprint));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        console.log('Device fingerprint components:', components.length);
+        console.log('Generated fingerprint:', hashHex.substring(0, 16) + '...');
+        
+        return hashHex;
     }
 
     // Validate session and setup timer
@@ -257,10 +366,19 @@
 
     // Initialize page
     if (validateSession()) {
-        deviceFingerprint = generateDeviceFingerprint();
-        document.getElementById('device-id').textContent = deviceFingerprint;
-        document.title = `${subject} Attendance - ${date}`;
-        loadStudents();
+        generateDeviceFingerprint().then(fingerprint => {
+            deviceFingerprint = fingerprint;
+            document.getElementById('device-id').textContent = fingerprint.substring(0, 16) + '...';
+            document.title = `${subject} Attendance - ${date}`;
+            loadStudents();
+        }).catch(error => {
+            console.error('Error generating device fingerprint:', error);
+            // Fallback to simpler fingerprint
+            deviceFingerprint = btoa(navigator.userAgent + Date.now()).substring(0, 32);
+            document.getElementById('device-id').textContent = deviceFingerprint.substring(0, 16) + '...';
+            document.title = `${subject} Attendance - ${date}`;
+            loadStudents();
+        });
     }
 
     async function loadStudents() {
