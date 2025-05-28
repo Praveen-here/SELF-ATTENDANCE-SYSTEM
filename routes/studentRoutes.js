@@ -75,8 +75,10 @@ router.post("/submit-attendance", async (req, res) => {
 
         console.log(`Attendance attempt - Student: ${studentID}, Device: ${deviceIdentifier}, IP: ${ipAddress}, Subject: ${subject}, Date: ${date}`);
 
-        // Parse the date to ensure consistent comparison
+        // FIXED: Parse the date to ensure consistent comparison
         const attendanceDate = new Date(date);
+        // Set time to start of day to avoid time zone issues
+        attendanceDate.setUTCHours(0, 0, 0, 0);
         const dateString = attendanceDate.toISOString().split('T')[0]; // Get YYYY-MM-DD format
 
         // FIXED: Check for existing attendance from the same device for this SPECIFIC subject and date
