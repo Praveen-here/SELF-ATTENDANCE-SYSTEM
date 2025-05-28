@@ -47,17 +47,24 @@ router.post("/submit-attendance", async (req, res) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
-        // Validate date format (YYYY-MM-DD)
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-            return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
-        }
-
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
 
+        // Create date object in UTC
+        const dateObj = new Date(date);
+        if (isNaN(dateObj)) {
+            return res.status(400).json({ message: "Invalid date format" });
+        }
+        
+        const utcDate = new Date(Date.UTC(
+            dateObj.getUTCFullYear(),
+            dateObj.getUTCMonth(),
+            dateObj.getUTCDate()
+        ));
+        
         // Check for existing attendance by student
         const existingByStudent = await Attendance.findOne({ 
-            date,
+            date: utcDate,
             subject,
             student: student._id 
         });
@@ -68,7 +75,7 @@ router.post("/submit-attendance", async (req, res) => {
 
         // Check for existing attendance by device
         const existingByDevice = await Attendance.findOne({ 
-            date,
+            date: utcDate,
             subject,
             deviceId 
         });
@@ -79,11 +86,10 @@ router.post("/submit-attendance", async (req, res) => {
 
         // Create new attendance record
         const attendance = new Attendance({
-            date,
+            date: utcDate,
             subject,
             student: student._id,
-            deviceId,
-            status: 'present'
+            deviceId
         });
 
         await attendance.save();

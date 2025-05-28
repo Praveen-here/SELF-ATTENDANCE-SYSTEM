@@ -46,40 +46,37 @@ router.get("/attendance-register", async (req, res) => {
         const { subject, date } = req.query;
         if (!subject) return res.status(400).json({ message: "Subject is required" });
         
-        // Get all students
-        const students = await Student.find({}, "studentID name");
-        
         // Get attendance records for the specific date and subject
-        let attendanceRecords = [];
-        if (date) {
-            // If a specific date is provided
-            attendanceRecords = await Attendance.find({ subject, date })
-                .populate('student', 'studentID name');
-        } else {
-            // If no date provided, get all records for the subject
-            attendanceRecords = await Attendance.find({ subject })
-                .populate('student', 'studentID name');
-        }
+        const query = { subject };
+        if (date) query.date = date;
         
-        // Create a map of studentID to status
+        const attendanceRecords = await Attendance.find(query)
+            .populate('student', 'studentID name')
+            .sort({ date: 1 });
+
+        // Extract unique dates from records
+        const dates = [...new Set(attendanceRecords.map(r => r.date.toISOString().split('T')[0]))].sort();
+        
+        // Create a map of date to present student IDs
         const attendanceMap = {};
         attendanceRecords.forEach(record => {
-            attendanceMap[record.student.studentID] = 'present';
+            const dateStr = record.date.toISOString().split('T')[0];
+            if (!attendanceMap[dateStr]) {
+                attendanceMap[dateStr] = [];
+            }
+            attendanceMap[dateStr].push(record.student.studentID);
         });
-        
-        // Prepare student data with attendance status
-        const studentData = students.map(student => {
-            return {
-                studentID: student.studentID,
-                name: student.name,
-                status: attendanceMap[student.studentID] || 'absent'
-            };
-        });
-        
-        res.json({
-            students: studentData,
-            subject,
-            date: date || 'all'
+
+        // Get all students who have ever attended this subject
+        const attendedStudents = await Student.find({
+            _id: { $in: attendanceRecords.map(r => r.student) }
+        }, "studentID name");
+
+        res.json({ 
+            students: attendedStudents, 
+            subject, 
+            attendanceMap,
+            dates
         });
 
     } catch (error) {
