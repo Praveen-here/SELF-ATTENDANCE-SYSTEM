@@ -134,13 +134,15 @@
 
     <!-- Login Form -->
     <div id="login-form" class="login-form">
-        <form id="login-form-element">
-            <input type="text" id="student-id" placeholder="Student ID" class="login-input" required>
-            <input type="password" id="password" placeholder="Password" class="login-input" required>
-            <button type="submit" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
-                Login
-            </button>
-        </form>
+        <div>
+            <input type="text" id="student-id" placeholder="Student ID" class="login-input w-full" required>
+        </div>
+        <div>
+            <input type="password" id="password" placeholder="Password" class="login-input w-full" required>
+        </div>
+        <button onclick="login()" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
+            Login
+        </button>
     </div>
 
     <!-- Attendance Form (initially hidden) -->
@@ -205,12 +207,6 @@
     document.getElementById('login-form').classList.remove('hidden');
     document.getElementById('attendance-form').classList.add('hidden');
 
-    // Handle form submission
-    document.getElementById('login-form-element').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await login();
-    });
-
     async function login() {
         const studentID = document.getElementById('student-id').value;
         const password = document.getElementById('password').value;
@@ -227,7 +223,9 @@
             });
             
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Login failed');
+            if (!res.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
             
             // On successful login
             document.getElementById('login-form').classList.add('hidden');
