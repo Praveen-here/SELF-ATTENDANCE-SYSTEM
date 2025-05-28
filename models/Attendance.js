@@ -16,13 +16,19 @@ AttendanceSchema.index({
     date: 1, 
     subject: 1, 
     student: 1 
-}, { unique: true });
+}, { 
+    unique: true,
+    collation: { locale: 'en', strength: 2 } // Case-insensitive
+});
 
 AttendanceSchema.index({ 
     date: 1, 
     subject: 1, 
     deviceIdentifier: 1 
-}, { unique: true });
+}, { 
+    unique: true,
+    collation: { locale: 'en', strength: 2 }
+});
 
 // FIXED: Proper compound indexes to prevent duplicates
 // One student can only have one attendance per subject per date
