@@ -109,6 +109,12 @@
         box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
         outline: none;
     }
+    
+    .login-btn {
+        background: linear-gradient(to right, #00d9ff, #0099ff);
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+    }
 
     @media (max-width: 768px) {
         .attendance-container {
@@ -128,11 +134,13 @@
 
     <!-- Login Form -->
     <div id="login-form" class="login-form">
-        <input type="text" id="student-id" placeholder="Student ID" class="login-input">
-        <input type="password" id="password" placeholder="Password" class="login-input">
-        <button onclick="login()" class="mt-2 w-full py-3 rounded-lg text-white font-semibold">
-            Login
-        </button>
+        <form id="login-form-element">
+            <input type="text" id="student-id" placeholder="Student ID" class="login-input">
+            <input type="password" id="password" placeholder="Password" class="login-input">
+            <button type="submit" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
+                Login
+            </button>
+        </form>
     </div>
 
     <!-- Attendance Form (initially hidden) -->
@@ -196,6 +204,12 @@
     // Show login form and hide attendance form initially
     document.getElementById('login-form').classList.remove('hidden');
     document.getElementById('attendance-form').classList.add('hidden');
+
+    // Handle form submission
+    document.getElementById('login-form-element').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await login();
+    });
 
     async function login() {
         const studentID = document.getElementById('student-id').value;

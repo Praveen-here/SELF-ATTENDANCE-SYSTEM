@@ -1,10 +1,10 @@
 // Fetch and display student list
 async function fetchStudents() {
-    const tableBody = document.querySelector("#student-list tbody");
-    tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>"; // Updated colspan to 4
+    const tableBody = document.querySelector("#student-list");
+    tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
 
     try {
-        // Dynamic API URL (Works for both local and Render)
+        // Dynamic API URL
         const API_BASE_URL = window.location.hostname.includes("localhost") 
             ? "http://localhost:9000" 
             : "https://attendance-co83.onrender.com"; 
@@ -16,14 +16,14 @@ async function fetchStudents() {
         }
 
         const students = await res.json();
-        tableBody.innerHTML = ""; // Clear loading message
+        tableBody.innerHTML = "";
 
         if (!Array.isArray(students) || students.length === 0) {
             tableBody.innerHTML = "<tr><td colspan='4'>No students found</td></tr>";
             return;
         }
 
-        // Generate device ID if not already exists
+        // Generate device ID if not exists
         let deviceId = localStorage.getItem('deviceId');
         if (!deviceId) {
             deviceId = self.crypto.randomUUID();
@@ -31,17 +31,18 @@ async function fetchStudents() {
         }
 
         students.forEach(student => {
-            if (!student.studentID || !student.name) return; // Ensure valid data
+            if (!student.studentID || !student.name) return;
             
             const row = document.createElement("tr");
             row.innerHTML = `
-                <td>${student.studentID}</td>
-                <td>${student.name}</td>
-                <td>
+                <td class="p-2 border">${student.studentID}</td>
+                <td class="p-2 border">${student.name}</td>
+                <td class="p-2 border text-center">
                     <input type="checkbox" class="student-checkbox" data-id="${student.studentID}">
                 </td>
-                <td>
-                    <button class="reset-password-btn" data-id="${student.studentID}">
+                <td class="p-2 border text-center">
+                    <button class="reset-password-btn bg-blue-500 text-white px-2 py-1 rounded text-sm"
+                            data-id="${student.studentID}">
                         Reset Password
                     </button>
                 </td>
@@ -51,27 +52,9 @@ async function fetchStudents() {
 
         // Add event listeners to reset password buttons
         document.querySelectorAll('.reset-password-btn').forEach(button => {
-            button.addEventListener('click', async (e) => {
+            button.addEventListener('click', (e) => {
                 const studentID = e.target.dataset.id;
-                if (confirm(`Reset password for student ${studentID}? Default will be their student ID.`)) {
-                    try {
-                        const res = await fetch(`${API_BASE_URL}/teacher/reset-password`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ studentID })
-                        });
-                        
-                        if (res.ok) {
-                            alert('Password reset successfully!');
-                        } else {
-                            const error = await res.json();
-                            alert(`Error: ${error.message}`);
-                        }
-                    } catch (err) {
-                        console.error('Password reset error:', err);
-                        alert('Failed to reset password');
-                    }
-                }
+                resetPassword(studentID);
             });
         });
 
@@ -81,20 +64,46 @@ async function fetchStudents() {
     }
 }
 
-// Load students when the page loads
-document.addEventListener("DOMContentLoaded", fetchStudents);
+// Password reset function
+async function resetPassword(studentID) {
+    if (!confirm(`Reset password for student ${studentID}? Default will be their student ID.`)) {
+        return;
+    }
+    
+    try {
+        const API_BASE_URL = window.location.hostname.includes("localhost") 
+            ? "http://localhost:9000" 
+            : "https://attendance-co83.onrender.com";
+        
+        const res = await fetch(`${API_BASE_URL}/teacher/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentID })
+        });
+        
+        if (res.ok) {
+            alert('Password reset successfully!');
+        } else {
+            const error = await res.json();
+            alert(`Error: ${error.message}`);
+        }
+    } catch (error) {
+        console.error('Password reset error:', error);
+        alert('Failed to reset password');
+    }
+}
 
-// Function to add new student
+// Add student function
 async function addStudent() {
     const studentID = document.getElementById('new-student-id').value;
     const name = document.getElementById('new-student-name').value;
-    const password = document.getElementById('new-student-password').value || studentID; // Default to student ID
+    const password = document.getElementById('new-student-password').value;
     
     if (!studentID || !name) {
         alert('Student ID and Name are required');
         return;
     }
-
+    
     try {
         const API_BASE_URL = window.location.hostname.includes("localhost") 
             ? "http://localhost:9000" 
@@ -121,3 +130,6 @@ async function addStudent() {
         alert('Failed to add student');
     }
 }
+
+// Load students when the page loads
+document.addEventListener("DOMContentLoaded", fetchStudents);

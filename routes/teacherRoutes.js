@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require('bcryptjs');
 const router = express.Router();
 const qr = require('qr-image');
 const Attendance = require("../models/Attendance");
@@ -51,7 +52,7 @@ router.post('/reset-password', async (req, res) => {
             return res.status(404).json({ message: "Student not found" });
         }
         
-        // Reset password to studentID (default)
+        // Reset password to studentID
         const salt = await bcrypt.genSalt(10);
         student.password = await bcrypt.hash(studentID, salt);
         await student.save();
@@ -74,15 +75,11 @@ router.post('/students', async (req, res) => {
             return res.status(400).json({ message: "Student ID already exists" });
         }
         
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        
         // Create new student
         const student = new Student({
             studentID,
             name,
-            password: hashedPassword
+            password: req.body.password // Already hashed by middleware
         });
         
         await student.save();

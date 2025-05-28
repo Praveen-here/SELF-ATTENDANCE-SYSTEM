@@ -52,6 +52,16 @@
     .gradient-btn:active {
       transform: scale(0.97);
     }
+    
+    .reset-btn {
+      background: linear-gradient(to right, #4a5568, #718096);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .reset-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(113, 128, 150, 0.3);
+    }
   </style>
 </head>
 
@@ -60,17 +70,12 @@
 
     <!-- Tab Buttons -->
     <div class="flex gap-2 mb-6">
-      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
+      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Generate QR</button>
       <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
+      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ManageStudents')">Manage Students</button>
     </div>
 
-    <!-- Add to tab buttons section -->
-<button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" 
-        onclick="openTab(event, 'ManageStudents')">
-    Manage Students
-</button>
-
-    <!-- Mark Attendance Tab (Updated for QR Generation) -->
+    <!-- Mark Attendance Tab -->
     <div id="MarkAttendance" class="tabcontent block">
       <h2 class="text-xl font-semibold mb-4">Generate Attendance QR Code</h2>
 
@@ -106,7 +111,7 @@
       </div>
     </div>
 
-    <!-- View Attendance Tab (Remains Same) -->
+    <!-- View Attendance Tab -->
     <div id="ViewAttendance" class="tabcontent hidden">
       <h2 class="text-xl font-semibold mb-4"> View Attendance</h2>
 
@@ -123,115 +128,120 @@
       
       <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 text-xs p-2"></div>
     </div>
-  </div>
 
-  <!-- Add to teacher.html -->
-<div id="ManageStudents" class="tabcontent hidden">
-    <h2 class="text-xl font-semibold mb-4">Manage Students</h2>
-    
-    <div class="glass-card p-4 mb-6">
+    <!-- Manage Students Tab -->
+    <div id="ManageStudents" class="tabcontent hidden">
+      <h2 class="text-xl font-semibold mb-4">Manage Students</h2>
+      
+      <div class="glass-card p-4 mb-6">
         <h3 class="text-lg mb-3">Add New Student</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm mb-1">Student ID:</label>
-                <input type="text" id="new-student-id" class="w-full p-2 glass-input rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm mb-1">Name:</label>
-                <input type="text" id="new-student-name" class="w-full p-2 glass-input rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm mb-1">Password (optional):</label>
-                <input type="password" id="new-student-password" class="w-full p-2 glass-input rounded-lg">
-                <p class="text-xs text-gray-400 mt-1">Default: Student ID</p>
-            </div>
-            <div class="flex items-end">
-                <button onclick="addStudent()" class="gradient-btn py-2 px-4 rounded-lg">
-                    Add Student
-                </button>
-            </div>
+          <div>
+            <label class="block text-sm mb-1">Student ID:</label>
+            <input type="text" id="new-student-id" class="w-full p-2 glass-input rounded-lg">
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Name:</label>
+            <input type="text" id="new-student-name" class="w-full p-2 glass-input rounded-lg">
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Password (optional):</label>
+            <input type="password" id="new-student-password" class="w-full p-2 glass-input rounded-lg">
+            <p class="text-xs text-gray-400 mt-1">Default: Student ID</p>
+          </div>
+          <div class="flex items-end">
+            <button onclick="addStudent()" class="gradient-btn py-2 px-4 rounded-lg">
+              Add Student
+            </button>
+          </div>
         </div>
-    </div>
-    
-    <div class="glass-card p-4">
+      </div>
+      
+      <div class="glass-card p-4">
         <h3 class="text-lg mb-3">Student List</h3>
         <table class="w-full table-auto">
-            <thead>
-                <tr class="bg-gray-800">
-                    <th class="p-2 text-left">ID</th>
-                    <th class="p-2 text-left">Name</th>
-                    <th class="p-2 text-center">Select</th>
-                    <th class="p-2 text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="student-list"></tbody>
+          <thead>
+            <tr class="bg-gray-800">
+              <th class="p-2 text-left">ID</th>
+              <th class="p-2 text-left">Name</th>
+              <th class="p-2 text-center">Select</th>
+              <th class="p-2 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="student-list"></tbody>
         </table>
+      </div>
     </div>
-</div>
+  </div>
 
-  <!-- Updated JavaScript -->
+  <!-- JavaScript -->
   <script>
     function openTab(evt, tabName) {
       document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
       document.querySelectorAll(".tablinks").forEach(btn => btn.classList.remove("active"));
       document.getElementById(tabName).style.display = "block";
       evt.currentTarget.classList.add("active");
+      
+      // Load students when Manage Students tab is opened
+      if (tabName === 'ManageStudents') {
+        fetchStudents();
+      }
     }
 
-    // QR Code Generation (Updated)
+    // QR Code Generation
     document.getElementById('qr-generator-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const date = document.getElementById('date').value;
-        const subject = document.getElementById('subject').value;
+      e.preventDefault();
+      const date = document.getElementById('date').value;
+      const subject = document.getElementById('subject').value;
 
-        if (!date || !subject) {
-            alert('Please select both date and subject');
-            return;
-        }
+      if (!date || !subject) {
+        alert('Please select both date and subject');
+        return;
+      }
 
-        const qrContainer = document.getElementById('qr-container');
-        const qrImage = document.getElementById('qr-image');
+      const qrContainer = document.getElementById('qr-container');
+      const qrImage = document.getElementById('qr-image');
+      
+      try {
+        // Generate fresh QR code with current timestamp
+        const params = new URLSearchParams({ 
+          date, 
+          subject, 
+          t: Date.now() // Add current timestamp
+        });
+        qrImage.src = `/teacher/generate-qr?${params}`;
         
-        try {
-            // Generate fresh QR code with current timestamp
-            const params = new URLSearchParams({ 
-                date, 
-                subject, 
-                t: Date.now() // Add current timestamp
-            });
-            qrImage.src = `/teacher/generate-qr?${params}`;
-            
-            qrContainer.classList.remove('hidden');
-            qrImage.classList.remove('hidden');
-            qrImage.classList.add('animate-pulse');
+        qrContainer.classList.remove('hidden');
+        qrImage.classList.remove('hidden');
+        qrImage.classList.add('animate-pulse');
 
-            // Handle loading errors
-            qrImage.onerror = () => {
-                qrImage.classList.add('hidden');
-                showQRError();
-            };
+        // Handle loading errors
+        qrImage.onerror = () => {
+          qrImage.classList.add('hidden');
+          showQRError();
+        };
 
-        } catch (error) {
-            console.error('QR generation failed:', error);
-            alert('Error generating QR code');
-        }
+      } catch (error) {
+        console.error('QR generation failed:', error);
+        alert('Error generating QR code');
+      }
     });
 
-function showQRError() {
-    const qrContainer = document.getElementById('qr-container');
-    qrContainer.innerHTML = `
+    function showQRError() {
+      const qrContainer = document.getElementById('qr-container');
+      qrContainer.innerHTML = `
         <div class="text-red-500 p-4 text-center">
-            Failed to generate QR code. Please try again.
+          Failed to generate QR code. Please try again.
         </div>
-    `;
-}
+      `;
+    }
 
-    // Existing View Attendance Functions
+    // View Attendance Functions
     async function loadRegister() {
-    const subject = document.getElementById('subjectSelect').value;
-    if (!subject) return alert("Please select a subject.");
-    
-    try {
+      const subject = document.getElementById('subjectSelect').value;
+      if (!subject) return alert("Please select a subject.");
+      
+      try {
         const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
         const data = await res.json();
 
@@ -244,41 +254,144 @@ function showQRError() {
         // Header row with new column order
         const headerRow = document.createElement('tr');
         headerRow.innerHTML = `
-            <th class="p-2 border">ID</th>
-            <th class="p-2 border">Name</th>
-            <th class="p-2 border">Classes Attended</th>
-            <th class="p-2 border">Percentage</th>
-            ${uniqueDates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('')}
+          <th class="p-2 border">ID</th>
+          <th class="p-2 border">Name</th>
+          <th class="p-2 border">Classes Attended</th>
+          <th class="p-2 border">Percentage</th>
+          ${uniqueDates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('')}
         `;
         table.appendChild(headerRow);
 
         // Student rows with new column order
         students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }))
-            .forEach(student => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="p-2 border">${student.studentID}</td>
-                    <td class="p-2 border">${student.name}</td>
-                    <td class="p-2 border font-medium">${student.attendedClasses}/${student.totalClasses}</td>
-                    <td class="p-2 border font-medium">${student.percentage}%</td>
-                    ${uniqueDates.map(date => {
-                        const presentIDs = attendanceMap[date] || [];
-                        const status = presentIDs.includes(student.studentID) ? 'P' : 'A';
-                        return `<td class="p-2 border">${status}</td>`;
-                    }).join('')}
-                `;
-                table.appendChild(row);
-            });
+          .forEach(student => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td class="p-2 border">${student.studentID}</td>
+              <td class="p-2 border">${student.name}</td>
+              <td class="p-2 border font-medium">${student.attendedClasses}/${student.totalClasses}</td>
+              <td class="p-2 border font-medium">${student.percentage}%</td>
+              ${uniqueDates.map(date => {
+                const presentIDs = attendanceMap[date] || [];
+                const status = presentIDs.includes(student.studentID) ? 'P' : 'A';
+                return `<td class="p-2 border">${status}</td>`;
+              }).join('')}
+            `;
+            table.appendChild(row);
+          });
 
         const container = document.getElementById('attendanceRegisterContainer');
         container.innerHTML = '';
         container.appendChild(table);
 
-    } catch (error) {
+      } catch (error) {
         console.error('Error loading attendance:', error);
         alert('Error loading attendance data');
+      }
     }
-}
+    
+    // Student Management Functions
+    async function fetchStudents() {
+      const tableBody = document.querySelector("#student-list");
+      tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+
+      try {
+        const res = await fetch('/teacher/students');
+        if (!res.ok) {
+          throw new Error(`Failed to fetch student data. Status: ${res.status}`);
+        }
+
+        const students = await res.json();
+        tableBody.innerHTML = "";
+
+        if (!Array.isArray(students) || students.length === 0) {
+          tableBody.innerHTML = "<tr><td colspan='4'>No students found</td></tr>";
+          return;
+        }
+
+        students.forEach(student => {
+          if (!student.studentID || !student.name) return;
+          
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td class="p-2 border">${student.studentID}</td>
+            <td class="p-2 border">${student.name}</td>
+            <td class="p-2 border text-center">
+              <input type="checkbox" class="student-checkbox" data-id="${student.studentID}">
+            </td>
+            <td class="p-2 border text-center">
+              <button class="reset-btn text-white px-3 py-1 rounded text-sm"
+                      onclick="resetPassword('${student.studentID}')">
+                Reset Password
+              </button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+      } catch (error) {
+        tableBody.innerHTML = "<tr><td colspan='4' style='color:red;'>Error loading students</td></tr>";
+        console.error("Error fetching students:", error);
+      }
+    }
+    
+    async function resetPassword(studentID) {
+      if (!confirm(`Reset password for student ${studentID}? Default will be their student ID.`)) {
+        return;
+      }
+      
+      try {
+        const res = await fetch('/teacher/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentID })
+        });
+        
+        if (res.ok) {
+          alert('Password reset successfully!');
+        } else {
+          const error = await res.json();
+          alert(`Error: ${error.message}`);
+        }
+      } catch (error) {
+        console.error('Password reset error:', error);
+        alert('Failed to reset password');
+      }
+    }
+    
+    async function addStudent() {
+      const studentID = document.getElementById('new-student-id').value;
+      const name = document.getElementById('new-student-name').value;
+      const password = document.getElementById('new-student-password').value;
+      
+      if (!studentID || !name) {
+        alert('Student ID and Name are required');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/teacher/students', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentID, name, password })
+        });
+        
+        if (res.ok) {
+          alert('Student added successfully!');
+          document.getElementById('new-student-id').value = '';
+          document.getElementById('new-student-name').value = '';
+          document.getElementById('new-student-password').value = '';
+          fetchStudents(); // Refresh list
+        } else {
+          const error = await res.json();
+          alert(`Error: ${error.message}`);
+        }
+      } catch (error) {
+        console.error('Error adding student:', error);
+        alert('Failed to add student');
+      }
+    }
+
     // Initialize default tab
     document.addEventListener("DOMContentLoaded", () => openTab(event, 'MarkAttendance'));
   </script>

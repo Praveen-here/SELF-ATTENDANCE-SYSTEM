@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const bcrypt = require('bcryptjs'); // Add this
 
 const app = express();
 
@@ -34,11 +35,11 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
+// Password hashing middleware
 app.use(express.json());
-
-// Password hashing middleware for new students
 app.use(async (req, res, next) => {
-    if (req.method === 'POST' && req.path === '/student') {
+    // Hash passwords for new students
+    if (req.method === 'POST' && req.path === '/teacher/students') {
         if (req.body.password) {
             const salt = await bcrypt.genSalt(10);
             req.body.password = await bcrypt.hash(req.body.password, salt);
