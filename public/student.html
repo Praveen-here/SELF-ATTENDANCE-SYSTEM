@@ -77,11 +77,19 @@
         background: linear-gradient(to right, #00d9ff, #0099ff);
         transition: all 0.3s ease;
         letter-spacing: 0.5px;
+        cursor: pointer;
     }
 
     button:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+    }
+
+    button:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
     }
 
     #alert {
@@ -102,6 +110,7 @@
         padding: 12px;
         border-radius: 8px;
         transition: all 0.3s ease;
+        width: 100%;
     }
 
     .login-input:focus {
@@ -135,12 +144,12 @@
     <!-- Login Form -->
     <div id="login-form" class="login-form">
         <div>
-            <input type="text" id="student-id" placeholder="Student ID" class="login-input w-full" required>
+            <input type="text" id="student-id" placeholder="Student ID" class="login-input" required>
         </div>
         <div>
-            <input type="password" id="password" placeholder="Password" class="login-input w-full" required>
+            <input type="password" id="password" placeholder="Password" class="login-input" required>
         </div>
-        <button onclick="login()" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
+        <button id="login-button" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
             Login
         </button>
     </div>
@@ -158,14 +167,20 @@
             </table>
         </div>
 
-        <button onclick="submitAttendance()"
-                class="mt-6 w-full py-3 rounded-lg text-white font-semibold">
+        <button id="submit-attendance" class="mt-6 w-full py-3 rounded-lg text-white font-semibold">
             Mark Attendance
         </button>
     </div>
 </div>
 
 <script>
+    // DOM Elements
+    const loginButton = document.getElementById('login-button');
+    const submitButton = document.getElementById('submit-attendance');
+    const studentIdInput = document.getElementById('student-id');
+    const passwordInput = document.getElementById('password');
+    const searchInput = document.getElementById('search');
+    
     let selectedStudent = null;
     const urlParams = new URLSearchParams(window.location.search);
     const subject = urlParams.get('subject');
@@ -207,15 +222,26 @@
     document.getElementById('login-form').classList.remove('hidden');
     document.getElementById('attendance-form').classList.add('hidden');
 
+    // Event Listeners
+    loginButton.addEventListener('click', login);
+    if (submitButton) {
+        submitButton.addEventListener('click', submitAttendance);
+    }
+
+    // Login function
     async function login() {
-        const studentID = document.getElementById('student-id').value;
-        const password = document.getElementById('password').value;
+        const studentID = studentIdInput.value;
+        const password = passwordInput.value;
         
         if (!studentID || !password) {
             return showAlert('Please enter both student ID and password', 'red');
         }
         
         try {
+            // Show loading state
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+            
             const res = await fetch('/student/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -223,8 +249,9 @@
             });
             
             const data = await res.json();
+            
             if (!res.ok) {
-                throw new Error(data.message || 'Login failed');
+                throw new Error(data.message || 'Login failed. Please check your credentials.');
             }
             
             // On successful login
@@ -233,9 +260,14 @@
             loadStudents();
         } catch (error) {
             showAlert('Login failed: ' + error.message, 'red');
+        } finally {
+            // Reset button state
+            loginButton.disabled = false;
+            loginButton.textContent = 'Login';
         }
     }
 
+    // Load students
     async function loadStudents() {
         try {
             const res = await fetch('/student/attendance-students');
@@ -253,7 +285,8 @@
                 </tr>
             `).join('');
 
-            document.getElementById('search').addEventListener('input', (e) => {
+            // Add search functionality
+            searchInput.addEventListener('input', (e) => {
                 const search = e.target.value.toLowerCase();
                 document.querySelectorAll('.student-row').forEach(row => {
                     const text = row.textContent.toLowerCase();
@@ -261,11 +294,12 @@
                 });
             });
         } catch (error) {
-            showAlert('Error loading students', 'red');
+            showAlert('Error loading students: ' + error.message, 'red');
             console.error('Student load error:', error);
         }
     }
 
+    // Select student
     function selectStudent(id, name, event) {
         selectedStudent = id;
         document.querySelectorAll('.student-row').forEach(row => {
@@ -274,12 +308,16 @@
         event.currentTarget.classList.add('selected-row');
     }
 
+    // Submit attendance
     async function submitAttendance() {
         if (!selectedStudent) {
             return showAlert('Please select a student', 'red');
         }
 
         try {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+            
             const res = await fetch('/student/submit-attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -292,7 +330,10 @@
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Attendance submission failed');
+            
+            if (!res.ok) {
+                throw new Error(data.message || 'Attendance submission failed');
+            }
 
             showAlert('Attendance marked successfully!', 'green');
             setTimeout(() => {
@@ -303,9 +344,13 @@
                 ? 'Attendance already marked for this session'
                 : error.message;
             showAlert(msg, 'red');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Mark Attendance';
         }
     }
 
+    // Show alert
     function showAlert(message, color = 'blue') {
         const alertDiv = document.getElementById('alert');
         alertDiv.textContent = message;
