@@ -8,7 +8,7 @@ const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'production'
     ? 'https://self-attendance-system.onrender.com' 
     : 'http://localhost:9000');
 
-// 📌 GET: Generate QR Code with session token
+// 📌 GET: Generate QR Code with unique session token
 router.get("/generate-qr", async (req, res) => {
     try {
         const { date, subject } = req.query;
@@ -16,18 +16,29 @@ router.get("/generate-qr", async (req, res) => {
             return res.status(400).json({ message: "Date and subject required" });
         }
 
-        // Generate session token with timestamp and random string
+        // Generate completely unique session token with high precision timestamp and larger random component
         const timestamp = Date.now();
-        const randomString = crypto.randomBytes(16).toString('hex');
-        const sessionToken = `${timestamp}_${randomString}`;
+        const microTime = process.hrtime.bigint(); // High precision timestamp
+        const randomString = crypto.randomBytes(32).toString('hex'); // Larger random component
+        const uniqueId = crypto.randomUUID(); // Additional UUID for uniqueness
+        const sessionToken = `${timestamp}_${microTime}_${randomString}_${uniqueId}`;
 
         // Create attendance URL with session token
         const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&session=${sessionToken}`;
         
-        console.log(`📱 Generated QR for ${subject} on ${date} with session: ${sessionToken}`);
+        console.log(`📱 Generated NEW QR for ${subject} on ${date} with unique session: ${sessionToken.substring(0, 50)}...`);
         
-        const qr_png = qr.image(attendanceUrl, { type: 'png' });
+        // Set headers to prevent caching
         res.setHeader('Content-type', 'image/png');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        
+        const qr_png = qr.image(attendanceUrl, { 
+            type: 'png',
+            size: 10,
+            margin: 2
+        });
         qr_png.pipe(res);
 
     } catch (error) {

@@ -115,7 +115,7 @@
 
         <button type="submit" 
                 class="w-full py-2 rounded-lg gradient-btn text-sm font-medium hover:opacity-90 transition-opacity">
-          Generate Secure QR Code
+          Generate New QR Code
         </button>
       </form>
 
@@ -205,6 +205,7 @@
 
   <script>
     let qrTimer = null;
+    let currentQRUrl = null;
 
     function openTab(evt, tabName) {
       document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
@@ -213,7 +214,7 @@
       evt.currentTarget.classList.add("active");
     }
 
-    // QR Code Generation with Security Features
+    // QR Code Generation with Enhanced Uniqueness
     document.getElementById('qr-generator-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const date = document.getElementById('date').value;
@@ -228,19 +229,51 @@
       const qrImage = document.getElementById('qr-image');
       
       try {
-        // Generate QR code
-        const params = new URLSearchParams({ date, subject });
-        qrImage.src = `/teacher/generate-qr?${params}`;
+        // Clear any existing timer
+        if (qrTimer) {
+          clearInterval(qrTimer);
+        }
+
+        // Add timestamp and random parameter to prevent caching
+        const cacheBuster = `${Date.now()}_${Math.random().toString(36).substring(2)}`;
+        const params = new URLSearchParams({ 
+          date, 
+          subject,
+          _cb: cacheBuster // Cache buster parameter
+        });
+        
+        const newQRUrl = `/teacher/generate-qr?${params}`;
+        
+        // Only update if it's a different URL or force refresh
+        if (currentQRUrl !== newQRUrl) {
+          currentQRUrl = newQRUrl;
+          
+          // Clear previous image and add loading state
+          qrImage.style.opacity = '0.5';
+          qrImage.alt = 'Generating new QR code...';
+          
+          console.log(`🔄 Generating fresh QR code with cache buster: ${cacheBuster}`);
+          
+          // Force reload with cache busting
+          qrImage.onload = () => {
+            qrImage.style.opacity = '1';
+            qrImage.alt = 'QR Code';
+            console.log('✅ New QR code loaded successfully');
+          };
+          
+          qrImage.src = newQRUrl;
+        }
         
         qrContainer.classList.remove('hidden');
         document.getElementById('qr-timestamp').textContent = 
           `Generated: ${new Date().toLocaleTimeString()}`;
         
-        // Start 10-minute countdown
+        // Start fresh 10-minute countdown
         startQRTimer();
 
         qrImage.onerror = () => {
-          qrImage.classList.add('hidden');
+          qrImage.style.opacity = '0.3';
+          console.error('❌ Failed to load QR image');
           showQRError();
         };
 
@@ -254,6 +287,11 @@
       let timeLeft = 10 * 60; // 10 minutes in seconds
       const timerDisplay = document.getElementById('qr-timer');
       
+      // Clear any existing timer
+      if (qrTimer) {
+        clearInterval(qrTimer);
+      }
+      
       qrTimer = setInterval(() => {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
@@ -265,6 +303,7 @@
           timerDisplay.textContent = 'EXPIRED';
           timerDisplay.style.color = '#ff0000';
           document.getElementById('qr-image').style.opacity = '0.5';
+          currentQRUrl = null; // Reset URL to force regeneration
         }
         
         timeLeft--;
