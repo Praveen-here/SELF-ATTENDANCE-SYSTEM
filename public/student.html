@@ -41,6 +41,22 @@
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     }
 
+    .session-info {
+        background: rgba(0, 217, 255, 0.1);
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+
+    .timer {
+        font-weight: bold;
+        color: #00d9ff;
+        font-size: 1.1rem;
+    }
+
     #search {
         background: rgba(255, 255, 255, 0.1);
         border: 2px solid rgba(255, 255, 255, 0.2);
@@ -84,9 +100,21 @@
         box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
     }
 
+    button:disabled {
+        background: rgba(255, 255, 255, 0.2);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
     #alert {
         border-radius: 6px;
         transition: all 0.3s ease;
+    }
+
+    .expired {
+        background: rgba(255, 0, 0, 0.2);
+        border-color: rgba(255, 0, 0, 0.5);
     }
 
     @media (max-width: 768px) {
@@ -103,6 +131,14 @@
 <div class="attendance-container">
     <h1>Mark Attendance</h1>
 
+    <div class="session-info">
+        <div>Session Status: <span id="session-status" class="timer">Validating...</span></div>
+        <div>Time Remaining: <span id="timer" class="timer">--:--</span></div>
+        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: rgba(255,255,255,0.7);">
+            Device ID: <span id="device-id">Generating...</span>
+        </div>
+    </div>
+
     <div id="alert" class="hidden mb-4 p-3 rounded"></div>
 
     <div class="mb-4">
@@ -116,26 +152,113 @@
         </table>
     </div>
 
-    <button onclick="submitAttendance()"
-            class="mt-6 w-full py-3 rounded-lg text-white font-semibold">
+    <button id="submit-btn" onclick="submitAttendance()"
+            class="mt-6 w-full py-3 rounded-lg text-white font-semibold"
+            disabled>
         Mark Attendance
     </button>
 </div>
 
 <script>
     let selectedStudent = null;
+    let sessionToken = null;
+    let sessionExpired = false;
+    let countdownTimer = null;
+    let deviceFingerprint = null;
+
     const urlParams = new URLSearchParams(window.location.search);
     const subject = urlParams.get('subject');
     const date = urlParams.get('date');
+    sessionToken = urlParams.get('session');
 
-    // Validate parameters on load
-    if (!date || !subject) {
-        document.body.innerHTML = `
-            <div class="p-4 text-center text-red-500">
-                Invalid attendance link. Please scan a valid QR code.
-            </div>
-        `;
-    } else {
+    // Generate device fingerprint
+    function generateDeviceFingerprint() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('Device fingerprint', 2, 2);
+        
+        const fingerprint = [
+            navigator.userAgent,
+            navigator.language,
+            screen.width + 'x' + screen.height,
+            new Date().getTimezoneOffset(),
+            navigator.platform,
+            canvas.toDataURL()
+        ].join('|');
+        
+        return btoa(fingerprint).substring(0, 16);
+    }
+
+    // Validate session and setup timer
+    function validateSession() {
+        if (!sessionToken || !date || !subject) {
+            document.body.innerHTML = `
+                <div class="attendance-container text-center text-red-500">
+                    <h1>Invalid Attendance Link</h1>
+                    <p>Please scan a valid QR code from your teacher.</p>
+                </div>
+            `;
+            return false;
+        }
+
+        try {
+            const [timestamp] = sessionToken.split('_');
+            const sessionTime = parseInt(timestamp);
+            const currentTime = Date.now();
+            const sessionAge = currentTime - sessionTime;
+            const maxAge = 10 * 60 * 1000; // 10 minutes
+
+            if (sessionAge >= maxAge) {
+                showExpiredSession();
+                return false;
+            }
+
+            // Setup countdown timer
+            startCountdown(maxAge - sessionAge);
+            document.getElementById('session-status').textContent = 'Active';
+            document.getElementById('session-status').style.color = '#00ff00';
+            
+            return true;
+        } catch (error) {
+            showExpiredSession();
+            return false;
+        }
+    }
+
+    function startCountdown(timeLeft) {
+        countdownTimer = setInterval(() => {
+            if (timeLeft <= 0) {
+                showExpiredSession();
+                return;
+            }
+
+            const minutes = Math.floor(timeLeft / 60000);
+            const seconds = Math.floor((timeLeft % 60000) / 1000);
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            timeLeft -= 1000;
+        }, 1000);
+    }
+
+    function showExpiredSession() {
+        sessionExpired = true;
+        clearInterval(countdownTimer);
+        document.getElementById('session-status').textContent = 'Expired';
+        document.getElementById('session-status').style.color = '#ff0000';
+        document.getElementById('timer').textContent = '00:00';
+        document.querySelector('.session-info').classList.add('expired');
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('submit-btn').textContent = 'Session Expired';
+        showAlert('QR code session has expired. Please scan a fresh QR code.', 'red');
+    }
+
+    // Initialize page
+    if (validateSession()) {
+        deviceFingerprint = generateDeviceFingerprint();
+        document.getElementById('device-id').textContent = deviceFingerprint;
         document.title = `${subject} Attendance - ${date}`;
         loadStudents();
     }
@@ -164,6 +287,10 @@
                     row.style.display = text.includes(search) ? '' : 'none';
                 });
             });
+
+            // Enable submit button after students load
+            document.getElementById('submit-btn').disabled = false;
+
         } catch (error) {
             showAlert('Error loading students', 'red');
             console.error('Student load error:', error);
@@ -171,6 +298,11 @@
     }
 
     function selectStudent(id, name, event) {
+        if (sessionExpired) {
+            showAlert('Session expired. Cannot select student.', 'red');
+            return;
+        }
+        
         selectedStudent = id;
         document.querySelectorAll('.student-row').forEach(row => {
             row.classList.remove('selected-row');
@@ -179,9 +311,18 @@
     }
 
     async function submitAttendance() {
+        if (sessionExpired) {
+            showAlert('Session has expired. Please scan a fresh QR code.', 'red');
+            return;
+        }
+
         if (!selectedStudent) {
             return showAlert('Please select a student', 'red');
         }
+
+        // Disable button to prevent multiple submissions
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('submit-btn').textContent = 'Submitting...';
 
         try {
             const res = await fetch('/student/submit-attendance', {
@@ -190,22 +331,48 @@
                 body: JSON.stringify({
                     studentID: selectedStudent,
                     date,
-                    subject
+                    subject,
+                    sessionToken
                 })
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
+            
+            if (!res.ok) {
+                throw new Error(data.message);
+            }
 
             showAlert('Attendance marked successfully!', 'green');
+            
+            // Clear selection and disable further submissions
+            selectedStudent = null;
+            document.querySelectorAll('.student-row').forEach(row => {
+                row.classList.remove('selected-row');
+                row.style.pointerEvents = 'none';
+                row.style.opacity = '0.5';
+            });
+            
+            document.getElementById('submit-btn').textContent = 'Attendance Submitted';
+            
             setTimeout(() => {
-                window.location.reload();
+                showAlert('You may now close this page. Thank you!', 'blue');
             }, 2000);
+
         } catch (error) {
-            const msg = error.message.includes('duplicate')
-                ? 'Attendance already marked for this session'
-                : error.message;
-            showAlert(msg, 'red');
+            // Re-enable button if submission failed
+            document.getElementById('submit-btn').disabled = false;
+            document.getElementById('submit-btn').textContent = 'Mark Attendance';
+            
+            let message = error.message;
+            if (message.includes('already submitted') || message.includes('duplicate')) {
+                message = 'Attendance already submitted from this device or for this student.';
+            } else if (message.includes('expired')) {
+                showExpiredSession();
+                return;
+            }
+            
+            showAlert(message, 'red');
+            console.error('Attendance submission error:', error);
         }
     }
 
@@ -214,8 +381,27 @@
         alertDiv.textContent = message;
         alertDiv.className = `bg-${color}-500/20 text-${color}-300 p-3 rounded`;
         alertDiv.classList.remove('hidden');
-        setTimeout(() => alertDiv.classList.add('hidden'), 3000);
+        
+        // Auto-hide success messages
+        if (color === 'green') {
+            setTimeout(() => alertDiv.classList.add('hidden'), 5000);
+        }
     }
+
+    // Prevent page refresh/back button after successful submission
+    window.addEventListener('beforeunload', (e) => {
+        if (selectedStudent === null && !sessionExpired) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Handle page visibility change (detect tab switching)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            console.log('Tab hidden - user might be attempting workarounds');
+        }
+    });
 </script>
 </body>
 </html>

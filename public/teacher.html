@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Teacher Panel</title>
+  <title>Teacher Panel - Secure Attendance</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -52,6 +52,31 @@
     .gradient-btn:active {
       transform: scale(0.97);
     }
+
+    .security-info {
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .qr-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 0.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      flex: 1;
+      margin: 0 0.25rem;
+    }
   </style>
 </head>
 
@@ -60,13 +85,14 @@
 
     <!-- Tab Buttons -->
     <div class="flex gap-2 mb-6">
-      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
+      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Generate QR</button>
       <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
+      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'DeviceAnalytics')">Device Analytics</button>
     </div>
 
-    <!-- Mark Attendance Tab (Updated for QR Generation) -->
+    <!-- Generate QR Code Tab -->
     <div id="MarkAttendance" class="tabcontent block">
-      <h2 class="text-xl font-semibold mb-4">Generate Attendance QR Code</h2>
+      <h2 class="text-xl font-semibold mb-4">Generate Secure Attendance QR Code</h2>
 
       <form id="qr-generator-form" class="space-y-4">
         <div>
@@ -89,22 +115,49 @@
 
         <button type="submit" 
                 class="w-full py-2 rounded-lg gradient-btn text-sm font-medium hover:opacity-90 transition-opacity">
-          Generate QR Code
+          Generate Secure QR Code
         </button>
       </form>
 
       <div id="qr-container" class="mt-6 text-center hidden">
         <p class="mb-3 text-sm text-gray-300">Scan this QR code to mark attendance:</p>
         <img id="qr-image" class="mx-auto w-48 h-48 border-4 border-white rounded-lg">
-        <p class="mt-3 text-xs text-gray-400">QR expires when closed. Students can only submit once per session.</p>
+        
+        <div class="security-info">
+          <div class="flex justify-between items-center mb-2">
+            <span>🔒 Security Features Active:</span>
+            <span id="qr-timestamp" class="text-xs"></span>
+          </div>
+          <ul class="text-left text-xs space-y-1">
+            <li>✓ Device fingerprinting enabled</li>
+            <li>✓ Session token validation active</li>
+            <li>✓ 10-minute QR expiration</li>
+            <li>✓ One submission per device enforced</li>
+          </ul>
+        </div>
+
+        <div class="qr-stats">
+          <div class="stat-item">
+            <div class="font-bold" id="qr-timer">10:00</div>
+            <div>Time Left</div>
+          </div>
+          <div class="stat-item">
+            <div class="font-bold">0</div>
+            <div>Submissions</div>
+          </div>
+          <div class="stat-item">
+            <div class="font-bold">0</div>
+            <div>Unique Devices</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- View Attendance Tab (Remains Same) -->
+    <!-- View Attendance Tab -->
     <div id="ViewAttendance" class="tabcontent hidden">
-      <h2 class="text-xl font-semibold mb-4"> View Attendance</h2>
+      <h2 class="text-xl font-semibold mb-4">View Attendance Register</h2>
 
-      <label for="subjectSelect" class="block text-sm mb-1"> Select Subject:</label>
+      <label for="subjectSelect" class="block text-sm mb-1">Select Subject:</label>
       <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg mb-4 text-sm">
         <option value="">-- Select Subject --</option>
         <option value="ML">Machine Learning</option>
@@ -113,14 +166,46 @@
         <option value="ECD">Embedded Computing & Design</option>
       </select>
 
-      <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn"> Load Register</button>
+      <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn">
+        Load Register
+      </button>
       
       <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 text-xs p-2"></div>
     </div>
+
+    <!-- Device Analytics Tab -->
+    <div id="DeviceAnalytics" class="tabcontent hidden">
+      <h2 class="text-xl font-semibold mb-4">Device & Security Analytics</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label for="analyticsDate" class="block text-sm mb-1">Date (Optional):</label>
+          <input type="date" id="analyticsDate" 
+                 class="w-full p-2 text-white glass-input rounded-lg text-sm">
+        </div>
+        <div>
+          <label for="analyticsSubject" class="block text-sm mb-1">Subject (Optional):</label>
+          <select id="analyticsSubject" class="w-full p-2 bg-gray-700 text-white rounded-lg text-sm">
+            <option value="">-- All Subjects --</option>
+            <option value="ML">Machine Learning</option>
+            <option value="Software Testing">Software Testing</option>
+            <option value="MAD">Mobile App Development</option>
+            <option value="ECD">Embedded Computing & Design</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="loadDeviceAnalytics()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn">
+        Load Analytics
+      </button>
+      
+      <div id="analyticsContainer" class="mt-4"></div>
+    </div>
   </div>
 
-  <!-- Updated JavaScript -->
   <script>
+    let qrTimer = null;
+
     function openTab(evt, tabName) {
       document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
       document.querySelectorAll(".tablinks").forEach(btn => btn.classList.remove("active"));
@@ -128,105 +213,246 @@
       evt.currentTarget.classList.add("active");
     }
 
-    // QR Code Generation (Updated)
+    // QR Code Generation with Security Features
     document.getElementById('qr-generator-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const date = document.getElementById('date').value;
-    const subject = document.getElementById('subject').value;
+      e.preventDefault();
+      const date = document.getElementById('date').value;
+      const subject = document.getElementById('subject').value;
 
-    if (!date || !subject) {
+      if (!date || !subject) {
         alert('Please select both date and subject');
         return;
-    }
+      }
 
-    const qrContainer = document.getElementById('qr-container');
-    const qrImage = document.getElementById('qr-image');
-    
-    try {
-        // Generate fresh QR code with timestamp
-        const params = new URLSearchParams({ date, subject, t: Date.now() });
+      const qrContainer = document.getElementById('qr-container');
+      const qrImage = document.getElementById('qr-image');
+      
+      try {
+        // Generate QR code
+        const params = new URLSearchParams({ date, subject });
         qrImage.src = `/teacher/generate-qr?${params}`;
         
         qrContainer.classList.remove('hidden');
-        qrImage.classList.remove('hidden');
-        qrImage.classList.add('animate-pulse');
+        document.getElementById('qr-timestamp').textContent = 
+          `Generated: ${new Date().toLocaleTimeString()}`;
+        
+        // Start 10-minute countdown
+        startQRTimer();
 
-        // Handle loading errors
         qrImage.onerror = () => {
-            qrImage.classList.add('hidden');
-            showQRError();
+          qrImage.classList.add('hidden');
+          showQRError();
         };
 
-    } catch (error) {
+      } catch (error) {
         console.error('QR generation failed:', error);
         alert('Error generating QR code');
+      }
+    });
+
+    function startQRTimer() {
+      let timeLeft = 10 * 60; // 10 minutes in seconds
+      const timerDisplay = document.getElementById('qr-timer');
+      
+      qrTimer = setInterval(() => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = 
+          `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (timeLeft <= 0) {
+          clearInterval(qrTimer);
+          timerDisplay.textContent = 'EXPIRED';
+          timerDisplay.style.color = '#ff0000';
+          document.getElementById('qr-image').style.opacity = '0.5';
+        }
+        
+        timeLeft--;
+      }, 1000);
     }
-});
 
-function showQRError() {
-    const qrContainer = document.getElementById('qr-container');
-    qrContainer.innerHTML = `
+    function showQRError() {
+      const qrContainer = document.getElementById('qr-container');
+      qrContainer.innerHTML = `
         <div class="text-red-500 p-4 text-center">
-            Failed to generate QR code. Please try again.
+          Failed to generate QR code. Please try again.
         </div>
-    `;
-}
+      `;
+    }
 
-    // Existing View Attendance Functions
+    // Load Attendance Register
     async function loadRegister() {
-    const subject = document.getElementById('subjectSelect').value;
-    if (!subject) return alert("Please select a subject.");
-    
-    try {
+      const subject = document.getElementById('subjectSelect').value;
+      if (!subject) return alert("Please select a subject.");
+      
+      try {
         const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
         const data = await res.json();
 
-        const { students, attendanceMap, dates } = data;
+        const { students, attendanceMap, dates, deviceStats, totalSubmissions } = data;
         const uniqueDates = dates.sort();
 
         const table = document.createElement('table');
         table.className = "min-w-full table-auto border border-gray-600 text-xs text-center";
         
-        // Header row with new column order
+        // Header with device stats
+        const headerInfo = document.createElement('div');
+        headerInfo.className = "mb-4 p-3 bg-gray-800 rounded-lg";
+        headerInfo.innerHTML = `
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div class="text-lg font-bold">${totalSubmissions}</div>
+              <div class="text-sm">Total Submissions</div>
+            </div>
+            <div>
+              <div class="text-lg font-bold">${deviceStats}</div>
+              <div class="text-sm">Unique Devices</div>
+            </div>
+            <div>
+              <div class="text-lg font-bold">${students.length}</div>
+              <div class="text-sm">Students</div>
+            </div>
+          </div>
+        `;
+        
+        // Table header
         const headerRow = document.createElement('tr');
         headerRow.innerHTML = `
-            <th class="p-2 border">ID</th>
-            <th class="p-2 border">Name</th>
-            <th class="p-2 border">Classes Attended</th>
-            <th class="p-2 border">Percentage</th>
-            ${uniqueDates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('')}
+          <th class="p-2 border">ID</th>
+          <th class="p-2 border">Name</th>
+          <th class="p-2 border">Attended</th>
+          <th class="p-2 border">Percentage</th>
+          ${uniqueDates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('')}
         `;
         table.appendChild(headerRow);
 
-        // Student rows with new column order
+        // Student rows
         students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }))
-            .forEach(student => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="p-2 border">${student.studentID}</td>
-                    <td class="p-2 border">${student.name}</td>
-                    <td class="p-2 border font-medium">${student.attendedClasses}/${student.totalClasses}</td>
-                    <td class="p-2 border font-medium">${student.percentage}%</td>
-                    ${uniqueDates.map(date => {
-                        const presentIDs = attendanceMap[date] || [];
-                        const status = presentIDs.includes(student.studentID) ? 'P' : 'A';
-                        return `<td class="p-2 border">${status}</td>`;
-                    }).join('')}
-                `;
-                table.appendChild(row);
-            });
+          .forEach(student => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td class="p-2 border">${student.studentID}</td>
+              <td class="p-2 border">${student.name}</td>
+              <td class="p-2 border font-medium">${student.attendedClasses}/${student.totalClasses}</td>
+              <td class="p-2 border font-medium">${student.percentage}%</td>
+              ${uniqueDates.map(date => {
+                const dayAttendance = attendanceMap[date] || [];
+                const isPresent = dayAttendance.some(entry => entry.studentID === student.studentID);
+                return `<td class="p-2 border">${isPresent ? 'P' : 'A'}</td>`;
+              }).join('')}
+            `;
+            table.appendChild(row);
+          });
 
         const container = document.getElementById('attendanceRegisterContainer');
         container.innerHTML = '';
+        container.appendChild(headerInfo);
         container.appendChild(table);
 
-    } catch (error) {
+      } catch (error) {
         console.error('Error loading attendance:', error);
         alert('Error loading attendance data');
+      }
     }
-}
+
+    // Load Device Analytics
+    async function loadDeviceAnalytics() {
+      const date = document.getElementById('analyticsDate').value;
+      const subject = document.getElementById('analyticsSubject').value;
+      
+      try {
+        const params = new URLSearchParams();
+        if (date) params.append('date', date);
+        if (subject) params.append('subject', subject);
+        
+        const res = await fetch(`/teacher/device-analytics?${params}`);
+        const data = await res.json();
+
+        const container = document.getElementById('analyticsContainer');
+        container.innerHTML = `
+          <div class="space-y-4">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-3 gap-4">
+              <div class="bg-gray-800 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold">${data.totalSubmissions}</div>
+                <div class="text-sm">Total Submissions</div>
+              </div>
+              <div class="bg-gray-800 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold">${data.uniqueDevices}</div>
+                <div class="text-sm">Unique Devices</div>
+              </div>
+              <div class="bg-gray-800 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold">${data.uniqueIPs}</div>
+                <div class="text-sm">Unique IP Addresses</div>
+              </div>
+            </div>
+
+            <!-- Suspicious Activity -->
+            ${data.suspiciousActivity.multipleStudentsPerDevice.length > 0 ? `
+              <div class="bg-red-900/20 border border-red-500 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2 text-red-400">⚠️ Multiple Students Per Device</h3>
+                ${data.suspiciousActivity.multipleStudentsPerDevice.map(item => `
+                  <div class="mb-2 text-sm">
+                    <strong>Device ${item.device}:</strong> ${item.count} submissions
+                    <br>Students: ${item.students.join(', ')}
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            ${data.suspiciousActivity.multipleDevicesPerIP.length > 0 ? `
+              <div class="bg-yellow-900/20 border border-yellow-500 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2 text-yellow-400">⚠️ Multiple Devices Per IP</h3>
+                ${data.suspiciousActivity.multipleDevicesPerIP.map(item => `
+                  <div class="mb-2 text-sm">
+                    <strong>IP ${item.ip}:</strong> ${item.devices.length} devices
+                    <br>Students: ${item.students.join(', ')}
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            <!-- Device Usage Details -->
+            <div class="bg-gray-800 p-4 rounded-lg">
+              <h3 class="text-lg font-semibold mb-3">Device Usage Details</h3>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="border-b border-gray-600">
+                      <th class="p-2 text-left">Device ID</th>
+                      <th class="p-2 text-left">Submissions</th>
+                      <th class="p-2 text-left">Students</th>
+                      <th class="p-2 text-left">IP Addresses</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${Object.entries(data.deviceUsage).map(([device, info]) => `
+                      <tr class="border-b border-gray-700">
+                        <td class="p-2">${device}</td>
+                        <td class="p-2">${info.count}</td>
+                        <td class="p-2">${info.students.join(', ')}</td>
+                        <td class="p-2">${info.ips.join(', ')}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        alert('Error loading device analytics');
+      }
+    }
+
     // Initialize default tab
-    document.addEventListener("DOMContentLoaded", () => openTab(event, 'MarkAttendance'));
+    document.addEventListener("DOMContentLoaded", () => {
+      // Set today's date as default
+      document.getElementById('date').value = new Date().toISOString().split('T')[0];
+      openTab(event, 'MarkAttendance');
+    });
   </script>
 </body>
 </html>

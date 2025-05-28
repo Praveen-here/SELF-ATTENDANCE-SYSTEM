@@ -3,11 +3,20 @@ const router = express.Router();
 const qr = require('qr-image');
 const Attendance = require("../models/Attendance");
 const Student = require("../models/student");
+const crypto = require('crypto');
+
 const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://self-attendance-system.onrender.com' 
     : 'http://localhost:9000');
 
-// 📌 GET: Generate QR Code
+// Generate unique session token for QR codes
+function generateSessionToken() {
+    const timestamp = Date.now();
+    const randomString = crypto.randomBytes(16).toString('hex');
+    return `${timestamp}_${randomString}`;
+}
+
+// 📌 GET: Generate QR Code with session token
 router.get("/generate-qr", async (req, res) => {
     try {
         const { date, subject } = req.query;
@@ -15,9 +24,13 @@ router.get("/generate-qr", async (req, res) => {
             return res.status(400).json({ message: "Date and subject required" });
         }
 
-        // Use HTTPS always in production
-        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-        const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}`;
+        // Generate unique session token for this QR code
+        const sessionToken = generateSessionToken();
+        
+        // Create attendance URL with session token
+        const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&session=${encodeURIComponent(sessionToken)}`;
+        
+        console.log(`Generated QR for ${subject} on ${date} with session: ${sessionToken}`);
         
         const qr_png = qr.image(attendanceUrl, { type: 'png' });
         res.setHeader('Content-type', 'image/png');
@@ -40,91 +53,7 @@ router.get("/students", async (req, res) => {
     }
 });
 
-// 📌 POST: Mark attendance
-router.post("/mark-attendance", async (req, res) => {
-    try {
-        let { date, subject, studentsPresent } = req.body;
-
-        date = date.trim();
-        const parsedDate = new Date(date);
-        if (isNaN(parsedDate)) {
-            return res.status(400).json({ message: "❌ Invalid date format" });
-        }
-        const formattedDate = parsedDate.toISOString().split("T")[0];
-
-        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id studentID");
-        const presentStudentIds = presentStudents.map(s => s._id);
-
-        let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
-        if (!attendanceRecord) {
-            attendanceRecord = new Attendance({
-                date: formattedDate,
-                subject,
-                presentStudents: presentStudentIds
-            });
-        } else {
-            attendanceRecord.presentStudents = presentStudentIds;
-        }
-
-        await attendanceRecord.save();
-        res.json({ message: "✅ Attendance submitted successfully!" });
-
-    } catch (error) {
-        console.error("❌ Error submitting attendance:", error);
-        res.status(500).json({ message: "❌ Server error while marking attendance" });
-    }
-});
-
-// 📌 PUT: Update attendance after submission
-router.put("/update-attendance", async (req, res) => {
-    try {
-        const { date, subject, studentsPresent } = req.body;
-        console.log("📩 Attendance update received:", req.body);
-
-        if (!date || !subject || !Array.isArray(studentsPresent)) {
-            return res.status(400).json({ message: "❌ Invalid attendance data" });
-        }
-
-        const formattedDate = new Date(date).toISOString().split("T")[0];
-
-        const presentStudents = await Student.find({ studentID: { $in: studentsPresent } }).select("_id studentID");
-        const presentStudentIds = presentStudents.map(s => s._id);
-
-        const allStudents = await Student.find({}, "_id studentID");
-        const absentStudentIds = allStudents
-            .filter(s => !studentsPresent.includes(s.studentID))
-            .map(s => s._id);
-
-        let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
-
-        if (!attendanceRecord) {
-            return res.status(404).json({ message: "❌ Attendance record not found" });
-        }
-
-        attendanceRecord.presentStudents = presentStudentIds;
-        await attendanceRecord.save();
-        console.log("✅ Attendance record updated.");
-
-        await Student.updateMany(
-            { _id: { $in: presentStudentIds } },
-            { $inc: { [`subjects.${subject}.attendedClasses`]: 1, [`subjects.${subject}.totalClasses`]: 1 } }
-        );
-
-        await Student.updateMany(
-            { _id: { $in: absentStudentIds } },
-            { $inc: { [`subjects.${subject}.totalClasses`]: 1 } }
-        );
-
-        res.json({ message: "✅ Attendance updated successfully!" });
-
-    } catch (error) {
-        console.error("❌ Error updating attendance:", error);
-        res.status(500).json({ message: "❌ Server error while updating attendance" });
-    }
-});
-
-// 📌 GET: View full attendance by subject with dates, present & absent
+// 📌 GET: View full attendance by subject with device tracking info
 router.get("/attendance-register", async (req, res) => {
     try {
         const { subject } = req.query;
@@ -132,15 +61,17 @@ router.get("/attendance-register", async (req, res) => {
 
         // Get all attendance records for the subject
         const attendances = await Attendance.find({ subject })
-            .populate('student', 'studentID')
+            .populate('student', 'studentID name')
             .sort({ date: 1 });
 
         // Get all students
         const students = await Student.find({}, "studentID name");
 
-        // Create attendance map with null checks
+        // Create attendance map with device tracking
         const attendanceMap = {};
         const dates = [];
+        const deviceStats = {};
+
         attendances.forEach(record => {
             try {
                 if (!record.student || !record.student.studentID) {
@@ -154,7 +85,19 @@ router.get("/attendance-register", async (req, res) => {
                 if (!attendanceMap[dateStr]) {
                     attendanceMap[dateStr] = [];
                 }
-                attendanceMap[dateStr].push(record.student.studentID);
+                attendanceMap[dateStr].push({
+                    studentID: record.student.studentID,
+                    deviceId: record.deviceIdentifier?.substring(0, 8) + '...', // Show partial device ID
+                    timestamp: record.timestamp,
+                    ipAddress: record.ipAddress
+                });
+
+                // Track device usage statistics
+                if (!deviceStats[record.deviceIdentifier]) {
+                    deviceStats[record.deviceIdentifier] = 0;
+                }
+                deviceStats[record.deviceIdentifier]++;
+                
             } catch (error) {
                 console.error(`Error processing record ${record._id}:`, error);
             }
@@ -164,8 +107,8 @@ router.get("/attendance-register", async (req, res) => {
         const totalClasses = [...new Set(dates)].length;
         const processedStudents = students.map(student => {
             const attendedClasses = [...new Set(dates)].reduce((count, date) => {
-                const presentIDs = attendanceMap[date] || [];
-                return presentIDs.includes(student.studentID) ? count + 1 : count;
+                const dayAttendance = attendanceMap[date] || [];
+                return dayAttendance.some(entry => entry.studentID === student.studentID) ? count + 1 : count;
             }, 0);
             
             const percentage = totalClasses > 0 
@@ -185,7 +128,9 @@ router.get("/attendance-register", async (req, res) => {
             students: processedStudents, 
             subject, 
             attendanceMap,
-            dates: [...new Set(dates)].sort()
+            dates: [...new Set(dates)].sort(),
+            deviceStats: Object.keys(deviceStats).length, // Number of unique devices used
+            totalSubmissions: attendances.length
         });
 
     } catch (error) {
@@ -194,68 +139,76 @@ router.get("/attendance-register", async (req, res) => {
     }
 });
 
-// 📌 POST: Save attendance from table editor (used when manually editing)
-router.post('/save-attendance', async (req, res) => {
-    const { attendanceData, subject } = req.body;
-    const invalidEntries = [];
-
-    console.log("📥 Received attendance data:", attendanceData);
-    console.log("📚 Subject:", subject);
-
+// 📌 GET: Device analytics for teachers
+router.get("/device-analytics", async (req, res) => {
     try {
-        for (let data of attendanceData) {
-            const { studentID, date, status } = data;
-            console.log(`📌 Processing: ${studentID} - ${date} - ${status}`);
+        const { date, subject } = req.query;
+        
+        const query = {};
+        if (date) query.date = new Date(date);
+        if (subject) query.subject = subject;
 
-            const parsedDate = new Date(date);
-            if (!date || isNaN(parsedDate)) {
-                console.warn(`❌ Invalid date skipped for student ${studentID}`);
-                invalidEntries.push(studentID);
-                continue;
+        const attendances = await Attendance.find(query)
+            .populate('student', 'studentID name');
+
+        const deviceUsage = {};
+        const ipUsage = {};
+        
+        attendances.forEach(record => {
+            // Track device usage
+            const deviceKey = record.deviceIdentifier?.substring(0, 12) + '...';
+            if (!deviceUsage[deviceKey]) {
+                deviceUsage[deviceKey] = {
+                    count: 0,
+                    students: [],
+                    ips: new Set()
+                };
             }
+            deviceUsage[deviceKey].count++;
+            deviceUsage[deviceKey].students.push(record.student?.studentID || 'Unknown');
+            deviceUsage[deviceKey].ips.add(record.ipAddress);
 
-            const formattedDate = parsedDate.toISOString().split("T")[0];
-            const student = await Student.findOne({ studentID });
-
-            if (!student) {
-                console.warn(`❌ Student not found: ${studentID}`);
-                invalidEntries.push(studentID);
-                continue;
+            // Track IP usage
+            if (!ipUsage[record.ipAddress]) {
+                ipUsage[record.ipAddress] = {
+                    count: 0,
+                    devices: new Set(),
+                    students: []
+                };
             }
+            ipUsage[record.ipAddress].count++;
+            ipUsage[record.ipAddress].devices.add(deviceKey);
+            ipUsage[record.ipAddress].students.push(record.student?.studentID || 'Unknown');
+        });
 
-            let attendanceRecord = await Attendance.findOne({ date: formattedDate, subject });
+        // Convert Sets to Arrays for JSON response
+        Object.keys(deviceUsage).forEach(device => {
+            deviceUsage[device].ips = Array.from(deviceUsage[device].ips);
+        });
+        
+        Object.keys(ipUsage).forEach(ip => {
+            ipUsage[ip].devices = Array.from(ipUsage[ip].devices);
+        });
 
-            if (!attendanceRecord) {
-                attendanceRecord = new Attendance({
-                    date: formattedDate,
-                    subject,
-                    presentStudents: status === 'P' ? [student._id] : [],
-                });
-            } else {
-                const isPresent = attendanceRecord.presentStudents
-                    .some(id => id.toString() === student._id.toString());
-
-                if (status === 'P' && !isPresent) {
-                    attendanceRecord.presentStudents.push(student._id);
-                } else if (status === 'A' && isPresent) {
-                    attendanceRecord.presentStudents = attendanceRecord.presentStudents.filter(
-                        id => id.toString() !== student._id.toString()
-                    );
-                }
+        res.json({
+            totalSubmissions: attendances.length,
+            uniqueDevices: Object.keys(deviceUsage).length,
+            uniqueIPs: Object.keys(ipUsage).length,
+            deviceUsage,
+            ipUsage,
+            suspiciousActivity: {
+                multipleStudentsPerDevice: Object.entries(deviceUsage)
+                    .filter(([device, data]) => data.count > 1)
+                    .map(([device, data]) => ({ device, ...data })),
+                multipleDevicesPerIP: Object.entries(ipUsage)
+                    .filter(([ip, data]) => data.devices.length > 3)
+                    .map(([ip, data]) => ({ ip, ...data }))
             }
-
-            await attendanceRecord.save();
-        }
-
-        const message = invalidEntries.length > 0
-            ? `✅ Attendance saved, but skipped: ${invalidEntries.join(", ")}`
-            : "✅ All attendance saved successfully!";
-
-        res.json({ success: true, message });
+        });
 
     } catch (error) {
-        console.error("❌ Error updating attendance:", error);
-        res.status(500).json({ success: false, message: '❌ Failed to update attendance.' });
+        console.error("❌ Error in device analytics:", error);
+        res.status(500).json({ message: "❌ Server error" });
     }
 });
 
