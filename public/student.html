@@ -187,13 +187,6 @@
     const date = urlParams.get('date');
     const t = parseInt(urlParams.get('t')); // QR generation timestamp
     
-    // Generate device ID
-    let deviceId = localStorage.getItem('deviceId');
-    if (!deviceId) {
-        deviceId = self.crypto.randomUUID();
-        localStorage.setItem('deviceId', deviceId);
-    }
-
     // Validate parameters on load
     if (!date || !subject || !t) {
         document.body.innerHTML = `
@@ -201,7 +194,10 @@
                 Invalid attendance link. Please scan a valid QR code.
             </div>
         `;
-    } else {
+        // Don't initialize the rest of the app
+        throw new Error("Invalid QR parameters");
+    } 
+    else {
         // Check QR code expiration (10 minutes)
         const now = Date.now();
         const expirationTime = 10 * 60 * 1000; // 10 minutes in ms
@@ -212,10 +208,18 @@
                     This QR code has expired. Please request a new one.
                 </div>
             `;
-            return;
+            // Don't initialize the rest of the app
+            throw new Error("QR code expired");
         }
         
         document.title = `${subject} Attendance - ${date}`;
+    }
+
+    // Generate device ID
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+        deviceId = self.crypto.randomUUID();
+        localStorage.setItem('deviceId', deviceId);
     }
 
     // Show login form and hide attendance form initially
@@ -286,13 +290,15 @@
             `).join('');
 
             // Add search functionality
-            searchInput.addEventListener('input', (e) => {
-                const search = e.target.value.toLowerCase();
-                document.querySelectorAll('.student-row').forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(search) ? '' : 'none';
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const search = e.target.value.toLowerCase();
+                    document.querySelectorAll('.student-row').forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        row.style.display = text.includes(search) ? '' : 'none';
+                    });
                 });
-            });
+            }
         } catch (error) {
             showAlert('Error loading students: ' + error.message, 'red');
             console.error('Student load error:', error);
@@ -345,8 +351,10 @@
                 : error.message;
             showAlert(msg, 'red');
         } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = 'Mark Attendance';
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Mark Attendance';
+            }
         }
     }
 
