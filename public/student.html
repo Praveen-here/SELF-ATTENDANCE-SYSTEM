@@ -135,8 +135,8 @@
     <!-- Login Form -->
     <div id="login-form" class="login-form">
         <form id="login-form-element">
-            <input type="text" id="student-id" placeholder="Student ID" class="login-input">
-            <input type="password" id="password" placeholder="Password" class="login-input">
+            <input type="text" id="student-id" placeholder="Student ID" class="login-input" required>
+            <input type="password" id="password" placeholder="Password" class="login-input" required>
             <button type="submit" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
                 Login
             </button>
@@ -227,7 +227,7 @@
             });
             
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
+            if (!res.ok) throw new Error(data.message || 'Login failed');
             
             // On successful login
             document.getElementById('login-form').classList.add('hidden');
@@ -294,7 +294,7 @@
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
+            if (!res.ok) throw new Error(data.message || 'Attendance submission failed');
 
             showAlert('Attendance marked successfully!', 'green');
             setTimeout(() => {

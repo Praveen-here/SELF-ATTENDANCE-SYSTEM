@@ -62,6 +62,10 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba(113, 128, 150, 0.3);
     }
+    
+    .checkbox-cell {
+      width: 20px;
+    }
   </style>
 </head>
 
@@ -145,8 +149,8 @@
             <input type="text" id="new-student-name" class="w-full p-2 glass-input rounded-lg">
           </div>
           <div>
-            <label class="block text-sm mb-1">Password (optional):</label>
-            <input type="password" id="new-student-password" class="w-full p-2 glass-input rounded-lg">
+            <label class="block text-sm mb-1">Password:</label>
+            <input type="password" id="new-student-password" class="w-full p-2 glass-input rounded-lg" value="">
             <p class="text-xs text-gray-400 mt-1">Default: Student ID</p>
           </div>
           <div class="flex items-end">
@@ -164,7 +168,6 @@
             <tr class="bg-gray-800">
               <th class="p-2 text-left">ID</th>
               <th class="p-2 text-left">Name</th>
-              <th class="p-2 text-center">Select</th>
               <th class="p-2 text-center">Actions</th>
             </tr>
           </thead>
@@ -293,7 +296,7 @@
     // Student Management Functions
     async function fetchStudents() {
       const tableBody = document.querySelector("#student-list");
-      tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+      tableBody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
 
       try {
         const res = await fetch('/teacher/students');
@@ -305,7 +308,7 @@
         tableBody.innerHTML = "";
 
         if (!Array.isArray(students) || students.length === 0) {
-          tableBody.innerHTML = "<tr><td colspan='4'>No students found</td></tr>";
+          tableBody.innerHTML = "<tr><td colspan='3'>No students found</td></tr>";
           return;
         }
 
@@ -317,9 +320,6 @@
             <td class="p-2 border">${student.studentID}</td>
             <td class="p-2 border">${student.name}</td>
             <td class="p-2 border text-center">
-              <input type="checkbox" class="student-checkbox" data-id="${student.studentID}">
-            </td>
-            <td class="p-2 border text-center">
               <button class="reset-btn text-white px-3 py-1 rounded text-sm"
                       onclick="resetPassword('${student.studentID}')">
                 Reset Password
@@ -330,13 +330,13 @@
         });
 
       } catch (error) {
-        tableBody.innerHTML = "<tr><td colspan='4' style='color:red;'>Error loading students</td></tr>";
+        tableBody.innerHTML = "<tr><td colspan='3' style='color:red;'>Error loading students</td></tr>";
         console.error("Error fetching students:", error);
       }
     }
     
     async function resetPassword(studentID) {
-      if (!confirm(`Reset password for student ${studentID}? Default will be their student ID.`)) {
+      if (!confirm(`Reset password for student ${studentID}? Password will be reset to their student ID.`)) {
         return;
       }
       
@@ -373,7 +373,11 @@
         const res = await fetch('/teacher/students', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ studentID, name, password })
+          body: JSON.stringify({ 
+            studentID, 
+            name, 
+            password: password || studentID // Use student ID if password is empty
+          })
         });
         
         if (res.ok) {
