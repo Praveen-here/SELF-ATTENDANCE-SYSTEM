@@ -194,6 +194,12 @@ router.get("/attendance-register", async (req, res) => {
         
         // Only record students who actually marked attendance
         attendances.forEach(record => {
+            // Skip records without student data
+            if (!record.student || !record.student.studentID) {
+                console.warn(`Skipping invalid attendance record: ${record._id}`);
+                return;
+            }
+            
             const dateStr = record.date.toISOString().split('T')[0];
             dates.push(dateStr);
             
@@ -201,14 +207,15 @@ router.get("/attendance-register", async (req, res) => {
                 attendanceMap[dateStr] = [];
             }
             
-            // Only add students who are actually present
             attendanceMap[dateStr].push(record.student.studentID);
         });
 
         // Calculate attendance stats for each student
-        const totalClasses = [...new Set(dates)].length;
+        const uniqueDates = [...new Set(dates)].sort();
+        const totalClasses = uniqueDates.length;
+        
         const processedStudents = students.map(student => {
-            const attendedClasses = [...new Set(dates)].reduce((count, date) => {
+            const attendedClasses = uniqueDates.reduce((count, date) => {
                 const presentIDs = attendanceMap[date] || [];
                 return presentIDs.includes(student.studentID) ? count + 1 : count;
             }, 0);
@@ -230,7 +237,7 @@ router.get("/attendance-register", async (req, res) => {
             students: processedStudents, 
             subject, 
             attendanceMap,
-            dates: [...new Set(dates)].sort()
+            dates: uniqueDates
         });
 
     } catch (error) {

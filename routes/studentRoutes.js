@@ -39,6 +39,7 @@ router.get('/attendance-students', async (req, res) => {
 });
 
 // Student Attendance Submission
+// Student Attendance Submission
 router.post("/submit-attendance", async (req, res) => {
     try {
         const { studentID, date, subject, deviceId } = req.body;
@@ -52,13 +53,17 @@ router.post("/submit-attendance", async (req, res) => {
 
         // Create date object in UTC
         const dateObj = new Date(date);
+        if (isNaN(dateObj)) {
+            return res.status(400).json({ message: "Invalid date format" });
+        }
+        
         const utcDate = new Date(Date.UTC(
-            dateObj.getFullYear(),
-            dateObj.getMonth(),
-            dateObj.getDate()
+            dateObj.getUTCFullYear(),
+            dateObj.getUTCMonth(),
+            dateObj.getUTCDate()
         ));
         
-        // Check for existing attendance
+        // Check for existing attendance by student
         const existingByStudent = await Attendance.findOne({ 
             date: utcDate,
             subject,
@@ -69,6 +74,7 @@ router.post("/submit-attendance", async (req, res) => {
             return res.status(400).json({ message: "Attendance already marked for this student" });
         }
 
+        // Check for existing attendance by device
         const existingByDevice = await Attendance.findOne({ 
             date: utcDate,
             subject,
@@ -98,12 +104,13 @@ router.post("/submit-attendance", async (req, res) => {
         studentSubjects.totalClasses += 1;
         studentSubjects.attendedClasses += 1;
         student.subjects.set(subject, studentSubjects);
+        
         await student.save();
 
         res.json({ success: true, message: "Attendance marked successfully" });
 
     } catch (error) {
-        console.error("Attendance error:", error);
+        console.error("Attendance submission error:", error);
         
         // Handle duplicate key error
         if (error.code === 11000) {
@@ -112,7 +119,13 @@ router.post("/submit-attendance", async (req, res) => {
             });
         }
         
-        res.status(500).json({ message: "Server error" });
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return res.status(400).json({ message: messages.join(', ') });
+        }
+        
+        res.status(500).json({ message: "Server error: " + error.message });
     }
 });
 
