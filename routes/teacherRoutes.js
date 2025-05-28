@@ -125,47 +125,67 @@ router.put("/update-attendance", async (req, res) => {
 });
 
 // 📌 GET: View full attendance by subject with dates, present & absent
-// 📌 GET: View full attendance by subject with dates, present & absent
 router.get("/attendance-register", async (req, res) => {
     try {
         const { subject } = req.query;
         if (!subject) return res.status(400).json({ message: "Subject is required" });
 
-        // Get attendance records with student population
+        // Get all attendance records for the subject
         const attendances = await Attendance.find({ subject })
-            .populate('student', 'studentID name')
+            .populate('student', 'studentID')
             .sort({ date: 1 });
 
         // Get all students
         const students = await Student.find({}, "studentID name");
 
-        // Create attendance map with proper error handling
+        // Create attendance map with null checks
         const attendanceMap = {};
+        const dates = [];
         attendances.forEach(record => {
             try {
+                if (!record.student || !record.student.studentID) {
+                    console.warn(`⚠️  Invalid student reference in attendance record: ${record._id}`);
+                    return;
+                }
+                
                 const dateStr = new Date(record.date).toISOString().split('T')[0];
+                dates.push(dateStr);
+                
                 if (!attendanceMap[dateStr]) {
                     attendanceMap[dateStr] = [];
                 }
-                
-                // Add null check for student reference
-                if (record.student && record.student.studentID) {
-                    attendanceMap[dateStr].push(record.student.studentID);
-                } else {
-                    console.warn(`⚠️  Orphaned attendance record found for ${dateStr}`);
-                }
+                attendanceMap[dateStr].push(record.student.studentID);
             } catch (error) {
-                console.error("Error processing attendance record:", error);
+                console.error(`Error processing record ${record._id}:`, error);
             }
         });
 
+        // Calculate attendance stats for each student
+        const totalClasses = [...new Set(dates)].length;
+        const processedStudents = students.map(student => {
+            const attendedClasses = [...new Set(dates)].reduce((count, date) => {
+                const presentIDs = attendanceMap[date] || [];
+                return presentIDs.includes(student.studentID) ? count + 1 : count;
+            }, 0);
+            
+            const percentage = totalClasses > 0 
+                ? ((attendedClasses / totalClasses) * 100).toFixed(1)
+                : 0;
+
+            return {
+                studentID: student.studentID,
+                name: student.name,
+                attendedClasses,
+                totalClasses,
+                percentage
+            };
+        });
+
         res.json({ 
-            students: students.map(s => ({
-                studentID: s.studentID,
-                name: s.name
-            })), 
+            students: processedStudents, 
             subject, 
-            attendanceMap 
+            attendanceMap,
+            dates: [...new Set(dates)].sort()
         });
 
     } catch (error) {

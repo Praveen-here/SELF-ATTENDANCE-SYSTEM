@@ -179,29 +179,35 @@ function showQRError() {
     
     try {
         const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
-        if (!res.ok) throw new Error('Failed to fetch attendance data');
         const data = await res.json();
 
-        const { students, attendanceMap } = data;
-        const dates = Object.keys(attendanceMap).sort();
+        const { students, attendanceMap, dates } = data;
+        const uniqueDates = dates.sort();
 
         const table = document.createElement('table');
         table.className = "min-w-full table-auto border border-gray-600 text-xs text-center";
         
-        // Header row
+        // Header row with new column order
         const headerRow = document.createElement('tr');
-        headerRow.innerHTML = `<th class="p-2 border">ID</th><th class="p-2 border">Name</th>` +
-            dates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('');
+        headerRow.innerHTML = `
+            <th class="p-2 border">ID</th>
+            <th class="p-2 border">Name</th>
+            <th class="p-2 border">Classes Attended</th>
+            <th class="p-2 border">Percentage</th>
+            ${uniqueDates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('')}
+        `;
         table.appendChild(headerRow);
 
-        // Student rows
+        // Student rows with new column order
         students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }))
             .forEach(student => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="p-2 border">${student.studentID}</td>
                     <td class="p-2 border">${student.name}</td>
-                    ${dates.map(date => {
+                    <td class="p-2 border font-medium">${student.attendedClasses}/${student.totalClasses}</td>
+                    <td class="p-2 border font-medium">${student.percentage}%</td>
+                    ${uniqueDates.map(date => {
                         const presentIDs = attendanceMap[date] || [];
                         const status = presentIDs.includes(student.studentID) ? 'P' : 'A';
                         return `<td class="p-2 border">${status}</td>`;
@@ -216,7 +222,7 @@ function showQRError() {
 
     } catch (error) {
         console.error('Error loading attendance:', error);
-        alert('Error loading attendance data. Check console for details.');
+        alert('Error loading attendance data');
     }
 }
     // Initialize default tab
