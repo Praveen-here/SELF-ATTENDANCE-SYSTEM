@@ -52,13 +52,13 @@ router.get('/attendance-students', async (req, res) => {
 // Student Attendance Submission with enhanced security
 router.post("/submit-attendance", async (req, res) => {
     try {
-        const { studentID, date, subject, sessionToken } = req.body;
+        const { studentID, date, subject, sessionToken, deviceFingerprint } = req.body;
         
-        if (!studentID || !date || !subject || !sessionToken) {
+        if (!studentID || !date || !subject || !sessionToken || !deviceFingerprint) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
-        // Validate session token (check if QR is still valid)
+        // Validate session token
         if (!validateSessionToken(sessionToken)) {
             return res.status(400).json({ 
                 message: "QR code has expired. Please scan a fresh QR code from your teacher." 
@@ -68,34 +68,23 @@ router.post("/submit-attendance", async (req, res) => {
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Generate device identifier
-        const deviceIdentifier = generateDeviceIdentifier(req);
-        const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-        const userAgent = req.headers['user-agent'] || 'unknown';
-
-        console.log(`Attendance attempt - Student: ${studentID}, Device: ${deviceIdentifier}, IP: ${ipAddress}, Subject: ${subject}, Date: ${date}`);
-
-        // FIXED: Parse the date to ensure consistent comparison
+        // Date standardization
         const attendanceDate = new Date(date);
-        // Set time to start of day to avoid time zone issues
         attendanceDate.setUTCHours(0, 0, 0, 0);
-        const dateString = attendanceDate.toISOString().split('T')[0]; // Get YYYY-MM-DD format
 
-        // FIXED: Check for existing attendance from the same device for this SPECIFIC subject and date
+        // Check existing attendance using client-provided device fingerprint
         const existingDeviceAttendance = await Attendance.findOne({
             date: attendanceDate,
             subject: subject,
-            deviceIdentifier: deviceIdentifier
+            deviceIdentifier: deviceFingerprint
         });
 
         if (existingDeviceAttendance) {
-            console.log(`❌ Device ${deviceIdentifier} already submitted for ${subject} on ${dateString}`);
             return res.status(400).json({ 
-                message: `Attendance already submitted from this device for ${subject} on ${dateString}.` 
+                message: `Attendance already submitted from this device for ${subject} today.` 
             });
         }
 
-        // FIXED: Check for existing attendance for this student for this SPECIFIC subject and date
         const existingStudentAttendance = await Attendance.findOne({
             date: attendanceDate,
             subject: subject,
@@ -103,26 +92,25 @@ router.post("/submit-attendance", async (req, res) => {
         });
 
         if (existingStudentAttendance) {
-            console.log(`❌ Student ${studentID} already has attendance for ${subject} on ${dateString}`);
             return res.status(400).json({ 
-                message: `Attendance already marked for ${studentID} in ${subject} on ${dateString}.` 
+                message: `Attendance already marked for ${studentID} in ${subject} today.` 
             });
         }
 
-        // Create new attendance record with device tracking
+        // Create new attendance record
         const attendance = new Attendance({
             date: attendanceDate,
             subject,
             student: student._id,
-            deviceIdentifier,
+            deviceIdentifier: deviceFingerprint,
             sessionToken,
-            ipAddress,
-            userAgent
+            ipAddress: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+            userAgent: req.headers['user-agent']
         });
 
         await attendance.save();
 
-        // Update student's subject attendance count
+        // Update student's attendance stats
         const studentSubjects = student.subjects.get(subject) || {
             totalClasses: 0,
             attendedClasses: 0
@@ -133,7 +121,6 @@ router.post("/submit-attendance", async (req, res) => {
         student.subjects.set(subject, studentSubjects);
         await student.save();
 
-        console.log(`✅ Attendance marked successfully for ${studentID} in ${subject} on ${dateString} from device ${deviceIdentifier}`);
         res.json({ success: true, message: "Attendance marked successfully!" });
 
     } catch (error) {

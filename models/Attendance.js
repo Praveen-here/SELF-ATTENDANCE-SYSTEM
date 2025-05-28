@@ -11,6 +11,19 @@ const AttendanceSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
 });
 
+// Compound indexes for unique constraints
+AttendanceSchema.index({ 
+    date: 1, 
+    subject: 1, 
+    student: 1 
+}, { unique: true });
+
+AttendanceSchema.index({ 
+    date: 1, 
+    subject: 1, 
+    deviceIdentifier: 1 
+}, { unique: true });
+
 // FIXED: Proper compound indexes to prevent duplicates
 // One student can only have one attendance per subject per date
 AttendanceSchema.index({ date: 1, subject: 1, student: 1 }, { unique: true });
