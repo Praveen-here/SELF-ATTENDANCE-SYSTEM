@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const bcrypt = require('bcryptjs'); // Add this
+const bcrypt = require('bcryptjs');
 
 const app = express();
 
@@ -23,17 +23,6 @@ mongoose.connect(process.env.MONGO_URI, {
     console.error("❌ MongoDB Connection Error:", err.message);
     process.exit(1);
 });
-
-// Add this before route definitions
-if (process.env.NODE_ENV === 'production') {
-    app.use((req, res, next) => {
-        if (req.header('x-forwarded-proto') !== 'https') {
-            res.redirect(`https://${req.header('host')}${req.url}`);
-        } else {
-            next();
-        }
-    });
-}
 
 // Password hashing middleware
 app.use(express.json());
@@ -60,9 +49,14 @@ app.get('/student-attendance', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'student.html'));
 });
 
+// Teacher Panel Route
+app.get('/teacher', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'teacher.html'));
+});
+
 // Redirect root to teacher panel
 app.get('/', (req, res) => {
-    res.redirect('/teacher.html');
+    res.redirect('/teacher');
 });
 
 // Handle 404

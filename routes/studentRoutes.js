@@ -27,7 +27,18 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Student Attendance Submission (Fixed)
+// Get all students for attendance
+router.get('/attendance-students', async (req, res) => {
+    try {
+        const students = await Student.find({}, 'studentID name');
+        res.json(students);
+    } catch (err) {
+        console.error("Error fetching students:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Student Attendance Submission
 router.post("/submit-attendance", async (req, res) => {
     try {
         const { studentID, date, subject, deviceId } = req.body;
