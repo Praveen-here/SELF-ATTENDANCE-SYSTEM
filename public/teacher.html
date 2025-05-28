@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teacher Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .tablinks.active {
+      background: linear-gradient(to right, #2b2b2b, #4a4a4a);
+      color: #ffffff;
+    }
+
+    .tablinks {
+      transition: all 0.3s ease;
+    }
+
+    .tabcontent {
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-input {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .gradient-btn {
+      background: linear-gradient(to right, #000000, #a3a3a3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .gradient-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(163, 163, 163, 0.3);
+    }
+
+    .gradient-btn:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white min-h-screen p-4">
+  <div class="max-w-4xl mx-auto glass-card rounded-2xl p-6 shadow-xl">
+
+    <!-- Tab Buttons -->
+    <div class="flex gap-2 mb-6">
+      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Mark Attendance</button>
+      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
+    </div>
+
+    <!-- Mark Attendance Tab (Updated for QR Generation) -->
+    <div id="MarkAttendance" class="tabcontent block">
+      <h2 class="text-xl font-semibold mb-4">Generate Attendance QR Code</h2>
+
+      <form id="qr-generator-form" class="space-y-4">
+        <div>
+          <label for="date" class="block text-sm mb-1">Date:</label>
+          <input type="date" id="date" required 
+                 class="w-full p-2 text-white glass-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
+        </div>
+
+        <div>
+          <label for="subject" class="block text-sm mb-1">Select Subject:</label>
+          <select id="subject" required 
+                  class="w-full p-2 bg-gray-700 text-white rounded-lg text-sm">
+            <option value="">-- Select Subject --</option>
+            <option value="ML">Machine Learning</option>
+            <option value="Software Testing">Software Testing</option>
+            <option value="MAD">Mobile App Development</option>
+            <option value="ECD">Embedded Computing & Design</option>
+          </select>
+        </div>
+
+        <button type="submit" 
+                class="w-full py-2 rounded-lg gradient-btn text-sm font-medium hover:opacity-90 transition-opacity">
+          Generate QR Code
+        </button>
+      </form>
+
+      <div id="qr-container" class="mt-6 text-center hidden">
+        <p class="mb-3 text-sm text-gray-300">Scan this QR code to mark attendance:</p>
+        <img id="qr-image" class="mx-auto w-48 h-48 border-4 border-white rounded-lg">
+        <p class="mt-3 text-xs text-gray-400">QR expires when closed. Students can only submit once per session.</p>
+      </div>
+    </div>
+
+    <!-- View Attendance Tab (Remains Same) -->
+    <div id="ViewAttendance" class="tabcontent hidden">
+      <h2 class="text-xl font-semibold mb-4"> View Attendance</h2>
+
+      <label for="subjectSelect" class="block text-sm mb-1"> Select Subject:</label>
+      <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg mb-4 text-sm">
+        <option value="">-- Select Subject --</option>
+        <option value="ML">Machine Learning</option>
+        <option value="Software Testing">Software Testing</option>
+        <option value="MAD">Mobile App Development</option>
+        <option value="ECD">Embedded Computing & Design</option>
+      </select>
+
+      <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn"> Load Register</button>
+      
+      <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 text-xs p-2"></div>
+    </div>
+  </div>
+
+  <!-- Updated JavaScript -->
+  <script>
+    function openTab(evt, tabName) {
+      document.querySelectorAll(".tabcontent").forEach(tab => tab.style.display = "none");
+      document.querySelectorAll(".tablinks").forEach(btn => btn.classList.remove("active"));
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.classList.add("active");
+    }
+
+    // QR Code Generation (Updated)
+    document.getElementById('qr-generator-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = document.getElementById('date').value;
+    const subject = document.getElementById('subject').value;
+
+    if (!date || !subject) {
+        alert('Please select both date and subject');
+        return;
+    }
+
+    const qrContainer = document.getElementById('qr-container');
+    const qrImage = document.getElementById('qr-image');
+    
+    try {
+        // Generate fresh QR code with timestamp
+        const params = new URLSearchParams({ date, subject, t: Date.now() });
+        qrImage.src = `/teacher/generate-qr?${params}`;
+        
+        qrContainer.classList.remove('hidden');
+        qrImage.classList.remove('hidden');
+        qrImage.classList.add('animate-pulse');
+
+        // Handle loading errors
+        qrImage.onerror = () => {
+            qrImage.classList.add('hidden');
+            showQRError();
+        };
+
+    } catch (error) {
+        console.error('QR generation failed:', error);
+        alert('Error generating QR code');
+    }
+});
+
+function showQRError() {
+    const qrContainer = document.getElementById('qr-container');
+    qrContainer.innerHTML = `
+        <div class="text-red-500 p-4 text-center">
+            Failed to generate QR code. Please try again.
+        </div>
+    `;
+}
+
+    // Existing View Attendance Functions
+    async function loadRegister() {
+    const subject = document.getElementById('subjectSelect').value;
+    if (!subject) return alert("Please select a subject.");
+    
+    try {
+        const res = await fetch(`/teacher/attendance-register?subject=${encodeURIComponent(subject)}`);
+        if (!res.ok) throw new Error('Failed to fetch attendance data');
+        const data = await res.json();
+
+        const { students, attendanceMap } = data;
+        const dates = Object.keys(attendanceMap).sort();
+
+        const table = document.createElement('table');
+        table.className = "min-w-full table-auto border border-gray-600 text-xs text-center";
+        
+        // Header row
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = `<th class="p-2 border">ID</th><th class="p-2 border">Name</th>` +
+            dates.map(date => `<th class="p-2 border">${new Date(date).toLocaleDateString()}</th>`).join('');
+        table.appendChild(headerRow);
+
+        // Student rows
+        students.sort((a, b) => a.studentID.localeCompare(b.studentID, undefined, { numeric: true }))
+            .forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-2 border">${student.studentID}</td>
+                    <td class="p-2 border">${student.name}</td>
+                    ${dates.map(date => {
+                        const presentIDs = attendanceMap[date] || [];
+                        const status = presentIDs.includes(student.studentID) ? 'P' : 'A';
+                        return `<td class="p-2 border">${status}</td>`;
+                    }).join('')}
+                `;
+                table.appendChild(row);
+            });
+
+        const container = document.getElementById('attendanceRegisterContainer');
+        container.innerHTML = '';
+        container.appendChild(table);
+
+    } catch (error) {
+        console.error('Error loading attendance:', error);
+        alert('Error loading attendance data. Check console for details.');
+    }
+}
+    // Initialize default tab
+    document.addEventListener("DOMContentLoaded", () => openTab(event, 'MarkAttendance'));
+  </script>
+</body>
+</html>

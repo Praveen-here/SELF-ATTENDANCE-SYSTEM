@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4 text-center">Mark Attendance</h1>
+        
+        <div id="alert" class="hidden mb-4 p-3 rounded"></div>
+        
+        <div class="mb-4">
+            <input type="text" id="search" placeholder="Search by name or ID" 
+                   class="w-full p-2 border rounded-lg">
+        </div>
+        
+        <div class="student-list h-64 overflow-y-auto">
+            <table class="w-full">
+                <tbody id="students"></tbody>
+            </table>
+        </div>
+        
+        <button onclick="submitAttendance()" 
+                class="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
+            Mark Attendance
+        </button>
+    </div>
+
+    <script>
+        let selectedStudent = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const subject = urlParams.get('subject');
+    const date = urlParams.get('date');
+
+    // Validate parameters on load
+    if (!date || !subject) {
+        document.body.innerHTML = `
+            <div class="p-4 text-center text-red-500">
+                Invalid attendance link. Please scan a valid QR code.
+            </div>
+        `;
+    } else {
+        document.title = `${subject} Attendance - ${date}`;
+        loadStudents();
+    }
+
+    async function loadStudents() {
+        try {
+            const res = await fetch('/student/attendance-students');
+            if (!res.ok) throw new Error('Failed to fetch students');
+            
+            const students = await res.json();
+            const tbody = document.getElementById('students');
+            
+            tbody.innerHTML = students.map(student => `
+                <tr class="cursor-pointer hover:bg-gray-50 student-row" 
+                    data-id="${student.studentID}"
+                    onclick="selectStudent('${student.studentID}', '${student.name}')">
+                    <td class="p-2">${student.studentID}</td>
+                    <td class="p-2">${student.name}</td>
+                </tr>
+            `).join('');
+            
+            // Add search functionality
+            document.getElementById('search').addEventListener('input', (e) => {
+                const search = e.target.value.toLowerCase();
+                document.querySelectorAll('.student-row').forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(search) ? '' : 'none';
+                });
+            });
+        } catch (error) {
+            showAlert('Error loading students', 'red');
+            console.error('Student load error:', error);
+        }
+    }
+
+        function selectStudent(id, name) {
+            selectedStudent = id;
+            document.querySelectorAll('.student-row').forEach(row => {
+                row.classList.remove('bg-blue-100');
+            });
+            event.target.closest('tr').classList.add('bg-blue-100');
+        }
+
+        async function submitAttendance() {
+            if (!selectedStudent) {
+                return showAlert('Please select a student', 'red');
+            }
+
+            try {
+                const res = await fetch('/student/submit-attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentID: selectedStudent,
+                        date,
+                        subject
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message);
+
+                showAlert('Attendance marked successfully!', 'green');
+                setTimeout(() => {
+                    window.location.reload(); // Prevent multiple submissions
+                }, 2000);
+            } catch (error) {
+                const msg = error.message.includes('duplicate') 
+                    ? 'Attendance already marked for this session'
+                    : error.message;
+                showAlert(msg, 'red');
+            }
+        }
+
+        function showAlert(message, color = 'blue') {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.textContent = message;
+            alertDiv.className = `bg-${color}-100 text-${color}-700 p-3 rounded hidden`;
+            alertDiv.classList.remove('hidden');
+            setTimeout(() => alertDiv.classList.add('hidden'), 3000);
+        }
+    </script>
+</body>
+</html>
