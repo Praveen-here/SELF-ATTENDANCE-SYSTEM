@@ -43,8 +43,6 @@ router.post("/submit-attendance", async (req, res) => {
     try {
         const { studentID, date, subject, deviceId } = req.body;
         
-        console.log("Received attendance submission:", req.body);
-        
         if (!studentID || !date || !subject || !deviceId) {
             return res.status(400).json({ message: "Missing required fields" });
         }
@@ -61,21 +59,24 @@ router.post("/submit-attendance", async (req, res) => {
         ));
         
         // Check for existing attendance
-        const existing = await Attendance.findOne({ 
+        const existingByStudent = await Attendance.findOne({ 
             date: utcDate,
             subject,
-            $or: [
-                { student: student._id },
-                { deviceId }
-            ]
+            student: student._id 
         });
         
-        if (existing) {
-            const message = existing.student.equals(student._id) 
-                ? "Attendance already marked for this student"
-                : "Attendance already marked from this device";
-                
-            return res.status(400).json({ message });
+        if (existingByStudent) {
+            return res.status(400).json({ message: "Attendance already marked for this student" });
+        }
+
+        const existingByDevice = await Attendance.findOne({ 
+            date: utcDate,
+            subject,
+            deviceId 
+        });
+        
+        if (existingByDevice) {
+            return res.status(400).json({ message: "Attendance already marked from this device" });
         }
 
         // Create new attendance record
@@ -97,25 +98,18 @@ router.post("/submit-attendance", async (req, res) => {
         studentSubjects.totalClasses += 1;
         studentSubjects.attendedClasses += 1;
         student.subjects.set(subject, studentSubjects);
-        
         await student.save();
 
         res.json({ success: true, message: "Attendance marked successfully" });
 
     } catch (error) {
-        console.error("Attendance submission error:", error);
+        console.error("Attendance error:", error);
         
         // Handle duplicate key error
         if (error.code === 11000) {
             return res.status(400).json({ 
                 message: "Attendance already marked for this session" 
             });
-        }
-        
-        // Handle validation errors
-        if (error instanceof mongoose.Error.ValidationError) {
-            const messages = Object.values(error.errors).map(e => e.message);
-            return res.status(400).json({ message: messages.join(', ') });
         }
         
         res.status(500).json({ message: "Server error" });

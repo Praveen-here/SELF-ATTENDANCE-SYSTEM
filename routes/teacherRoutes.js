@@ -182,32 +182,27 @@ router.get("/attendance-register", async (req, res) => {
 
         // Get all attendance records for the subject
         const attendances = await Attendance.find({ subject })
-            .populate('student', 'studentID')
+            .populate('student', 'studentID name')
             .sort({ date: 1 });
 
         // Get all students
         const students = await Student.find({}, "studentID name");
 
-        // Create attendance map with null checks
+        // Create attendance map
         const attendanceMap = {};
         const dates = [];
+        
+        // Only record students who actually marked attendance
         attendances.forEach(record => {
-            try {
-                if (!record.student || !record.student.studentID) {
-                    console.warn(`⚠️  Invalid student reference in attendance record: ${record._id}`);
-                    return;
-                }
-                
-                const dateStr = new Date(record.date).toISOString().split('T')[0];
-                dates.push(dateStr);
-                
-                if (!attendanceMap[dateStr]) {
-                    attendanceMap[dateStr] = [];
-                }
-                attendanceMap[dateStr].push(record.student.studentID);
-            } catch (error) {
-                console.error(`Error processing record ${record._id}:`, error);
+            const dateStr = record.date.toISOString().split('T')[0];
+            dates.push(dateStr);
+            
+            if (!attendanceMap[dateStr]) {
+                attendanceMap[dateStr] = [];
             }
+            
+            // Only add students who are actually present
+            attendanceMap[dateStr].push(record.student.studentID);
         });
 
         // Calculate attendance stats for each student
@@ -239,8 +234,8 @@ router.get("/attendance-register", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("❌ Error in /attendance-register:", error);
-        res.status(500).json({ message: "❌ Server error" });
+        console.error("Error in /attendance-register:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
