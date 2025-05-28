@@ -3,7 +3,9 @@ const router = express.Router();
 const qr = require('qr-image');
 const Attendance = require("../models/Attendance");
 const Student = require("../models/student");
-const baseUrl = process.env.BASE_URL || 'http://localhost:9000';
+const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'production' 
+    ? 'https://self-attendance-system.onrender.com' 
+    : 'http://localhost:9000');
 
 // 📌 GET: Generate QR Code
 router.get("/generate-qr", async (req, res) => {
@@ -13,7 +15,10 @@ router.get("/generate-qr", async (req, res) => {
             return res.status(400).json({ message: "Date and subject required" });
         }
 
+        // Use HTTPS always in production
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
         const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}`;
+        
         const qr_png = qr.image(attendanceUrl, { type: 'png' });
         res.setHeader('Content-type', 'image/png');
         qr_png.pipe(res);
