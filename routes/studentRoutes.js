@@ -2,41 +2,29 @@ const express = require('express');
 const router = express.Router();
 const Student = require('../models/student');
 const Attendance = require('../models/Attendance');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
-// Helper function to generate a comprehensive device identifier
-function generateDeviceIdentifier(req) {
-    const ipAddress = req.headers['x-forwarded-for'] || 
-                     req.connection.remoteAddress || 
-                     req.socket.remoteAddress ||
-                     (req.connection.socket ? req.connection.socket.remoteAddress : null);
-    
-    const userAgent = req.headers['user-agent'] || 'unknown';
-    const acceptLanguage = req.headers['accept-language'] || '';
-    const acceptEncoding = req.headers['accept-encoding'] || '';
-    
-    // Create a more robust device fingerprint
-    const deviceString = `${ipAddress}${userAgent}${acceptLanguage}${acceptEncoding}`;
-    const deviceHash = crypto.createHash('sha256').update(deviceString).digest('hex');
-    return deviceHash;
-}
-
-// Validate session token and check if it's still valid (within time limit)
-function validateSessionToken(sessionToken) {
+// Student login
+router.post('/login', async (req, res) => {
     try {
-        // Session token format: timestamp_randomString
-        const [timestamp, ...rest] = sessionToken.split('_');
-        const tokenTime = parseInt(timestamp);
-        const currentTime = Date.now();
+        const { studentID, password } = req.body;
+        const student = await Student.findOne({ studentID });
         
-        // QR codes expire after 10 minutes (600000 ms)
-        const expirationTime = 10 * 60 * 1000;
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
         
-        return (currentTime - tokenTime) <= expirationTime;
-    } catch (error) {
-        return false;
+        const isMatch = await bcrypt.compare(password, student.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        
+        res.json({ success: true, message: "Login successful" });
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ message: "Server error" });
     }
-}
+});
 
 // Get all students for attendance
 router.get('/attendance-students', async (req, res) => {
@@ -49,113 +37,65 @@ router.get('/attendance-students', async (req, res) => {
     }
 });
 
-// Student Attendance Submission with enhanced security
+// Student Attendance Submission
 router.post("/submit-attendance", async (req, res) => {
     try {
-        const { studentID, date, subject, sessionToken, deviceFingerprint } = req.body;
+        const { studentID, date, subject, deviceId } = req.body;
         
-        // Validate all required fields
-        if (!studentID || !date || !subject || !sessionToken || !deviceFingerprint) {
-            return res.status(400).json({ message: "Missing required security parameters" });
+        if (!studentID || !date || !subject || !deviceId) {
+            return res.status(400).json({ message: "Missing required fields" });
         }
 
-        // Validate session token
-        if (!validateSessionToken(sessionToken)) {
-            return res.status(400).json({ 
-                message: "QR code session expired. Please scan a fresh code." 
-            });
-        }
-
-        // Validate student exists
         const student = await Student.findOne({ studentID });
-        if (!student) return res.status(404).json({ message: "Student not registered" });
+        if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Date standardization
-        const attendanceDate = new Date(date);
-        attendanceDate.setUTCHours(0, 0, 0, 0);
-
-        // Check for existing student attendance
-        const existingStudentAttendance = await Attendance.findOne({
-            date: attendanceDate,
-            subject: subject,
-            student: student._id
+        // Check for existing attendance by student
+        const existingByStudent = await Attendance.findOne({ 
+            date: new Date(date),
+            subject,
+            student: student._id 
         });
-
-        if (existingStudentAttendance) {
-            return res.status(400).json({ 
-                message: `${student.name} already marked present for ${subject} today.` 
-            });
+        
+        if (existingByStudent) {
+            return res.status(400).json({ message: "Attendance already marked for this student" });
         }
 
-        // Check for device usage
-        const existingDeviceAttendance = await Attendance.findOne({
-            date: attendanceDate,
-            subject: subject,
-            deviceIdentifier: deviceFingerprint
+        // Check for existing attendance by device
+        const existingByDevice = await Attendance.findOne({ 
+            date: new Date(date),
+            subject,
+            deviceId 
         });
-
-        if (existingDeviceAttendance) {
-            return res.status(400).json({ 
-                message: "This device already submitted attendance for today's session." 
-            });
+        
+        if (existingByDevice) {
+            return res.status(400).json({ message: "Attendance already marked from this device" });
         }
 
         // Create new attendance record
         const attendance = new Attendance({
-            date: attendanceDate,
+            date: new Date(date),
             subject,
             student: student._id,
-            deviceIdentifier: deviceFingerprint,
-            sessionToken,
-            ipAddress: req.ip,
-            userAgent: req.headers['user-agent']
+            deviceId
         });
 
         await attendance.save();
 
-        // Update student's attendance records
-        const subjectStats = student.subjects.get(subject) || { 
-            totalClasses: 0, 
-            attendedClasses: 0 
+        // Update student's subject attendance count
+        const studentSubjects = student.subjects.get(subject) || {
+            totalClasses: 0,
+            attendedClasses: 0
         };
-        subjectStats.totalClasses += 1;
-        subjectStats.attendedClasses += 1;
-        student.subjects.set(subject, subjectStats);
+        
+        studentSubjects.totalClasses += 1;
+        studentSubjects.attendedClasses += 1;
+        student.subjects.set(subject, studentSubjects);
         await student.save();
 
-        res.json({ 
-            success: true, 
-            message: `${student.name}'s attendance recorded successfully!` 
-        });
+        res.json({ success: true, message: "Attendance marked successfully" });
 
     } catch (error) {
-        console.error("Submission error:", error);
-        if (error.code === 11000) {
-            return res.status(400).json({ 
-                message: "Duplicate submission detected by system" 
-            });
-        }
-        res.status(500).json({ message: "Server error during submission" });
-    }
-});
-
-// Get attendance stats for a specific device (for debugging)
-router.get('/device-stats/:deviceId', async (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        const attendanceCount = await Attendance.countDocuments({ deviceIdentifier: deviceId });
-        const recentAttendance = await Attendance.find({ deviceIdentifier: deviceId })
-            .sort({ timestamp: -1 })
-            .limit(10)
-            .populate('student', 'studentID name');
-            
-        res.json({ 
-            deviceId, 
-            totalSubmissions: attendanceCount, 
-            recentAttendance 
-        });
-    } catch (error) {
-        console.error("Device stats error:", error);
+        console.error("Attendance error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });

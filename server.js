@@ -34,6 +34,19 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
+app.use(express.json());
+
+// Password hashing middleware for new students
+app.use(async (req, res, next) => {
+    if (req.method === 'POST' && req.path === '/student') {
+        if (req.body.password) {
+            const salt = await bcrypt.genSalt(10);
+            req.body.password = await bcrypt.hash(req.body.password, salt);
+        }
+    }
+    next();
+});
+
 // Routes
 const teacherRoutes = require('./routes/teacherRoutes');
 const studentRoutes = require('./routes/studentRoutes');

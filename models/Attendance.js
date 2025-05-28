@@ -4,38 +4,12 @@ const AttendanceSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     subject: { type: String, required: true },
     student: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true },
-    deviceIdentifier: { type: String, required: true }, // Device fingerprint
-    sessionToken: { type: String, required: true }, // QR session token
-    ipAddress: { type: String, required: true },
-    userAgent: { type: String, required: true },
+    deviceId: { type: String, required: true }, // Added deviceId field
     timestamp: { type: Date, default: Date.now }
 });
 
-// Compound indexes for unique constraints
-AttendanceSchema.index({ 
-    date: 1, 
-    subject: 1, 
-    student: 1 
-}, { 
-    unique: true,
-    collation: { locale: 'en', strength: 2 } // Case-insensitive
-});
-
-AttendanceSchema.index({ 
-    date: 1, 
-    subject: 1, 
-    deviceIdentifier: 1 
-}, { 
-    unique: true,
-    collation: { locale: 'en', strength: 2 }
-});
-
-// FIXED: Proper compound indexes to prevent duplicates
-// One student can only have one attendance per subject per date
+// Add compound index to prevent duplicate entries
 AttendanceSchema.index({ date: 1, subject: 1, student: 1 }, { unique: true });
-// One device can only submit one attendance per subject per date
-AttendanceSchema.index({ date: 1, subject: 1, deviceIdentifier: 1 }, { unique: true });
-// Index for session tokens
-AttendanceSchema.index({ sessionToken: 1 });
+AttendanceSchema.index({ date: 1, subject: 1, deviceId: 1 }, { unique: true }); // Added deviceId index
 
 module.exports = mongoose.model("Attendance", AttendanceSchema);
