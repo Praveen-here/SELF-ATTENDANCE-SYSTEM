@@ -6,7 +6,7 @@
 <title>Student Attendance</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet>
 <style>
-    /* Custom CSS remains unchanged */
+    /* Custom CSS */
     * {
         margin: 0;
         padding: 0;
@@ -34,7 +34,97 @@
         max-width: 500px;
     }
 
-    /* ... rest of the CSS remains unchanged ... */
+    h1 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        font-size: 1.8rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .session-info {
+        background: rgba(0, 217, 255, 0.1);
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+
+    .timer {
+        font-weight: bold;
+        color: #00d9ff;
+        font-size: 1.1rem;
+    }
+
+    #search {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    #search:focus {
+        border-color: #00d9ff;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+    }
+
+    .student-list {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        overflow-y: auto;
+        max-height: 16rem;
+    }
+
+    .student-row {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .student-row:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .selected-row {
+        background: rgba(0, 217, 255, 0.2);
+    }
+
+    button {
+        background: linear-gradient(to right, #00d9ff, #0099ff);
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+    }
+
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+    }
+
+    button:disabled {
+        background: rgba(255, 255, 255, 0.2);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    #alert {
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .expired {
+        background: rgba(255, 0, 0, 0.2);
+        border-color: rgba(255, 0, 0, 0.5);
+    }
+
+    @media (max-width: 768px) {
+        .attendance-container {
+            padding: 1.5rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+        }
+    }
 </style>
 </head>
 <body>
