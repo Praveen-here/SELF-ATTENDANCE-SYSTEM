@@ -16,18 +16,19 @@ app.use(express.static('public'));
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
+    useUnifiedTopology: true,
+})
+.then(() => {
     console.log("✅ MongoDB Connected Successfully");
-}).catch(err => {
+})
+.catch(err => {
     console.error("❌ MongoDB Connection Error:", err.message);
     process.exit(1);
 });
 
-// Password hashing middleware
+// Password hashing middleware for new students creation
 app.use(express.json());
 app.use(async (req, res, next) => {
-    // Hash passwords for new students
     if (req.method === 'POST' && req.path === '/teacher/students') {
         if (req.body.password) {
             const salt = await bcrypt.genSalt(10);
@@ -37,19 +38,19 @@ app.use(async (req, res, next) => {
     next();
 });
 
-// Routes
+// Import Routes
 const teacherRoutes = require('./routes/teacherRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 
+// Use Routes
 app.use('/teacher', teacherRoutes);
 app.use('/student', studentRoutes);
 
-// Student Attendance Page Route
+// Serve static HTML pages for attendance and teacher panel
 app.get('/student-attendance', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'student.html'));
 });
 
-// Teacher Panel Route
 app.get('/teacher', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'teacher.html'));
 });
@@ -59,11 +60,11 @@ app.get('/', (req, res) => {
     res.redirect('/teacher');
 });
 
-// Handle 404
+// 404 handler
 app.use((req, res) => {
     res.status(404).json({ message: "❌ Route Not Found" });
 });
 
-// Server Initialization
+// Start server
 const PORT = process.env.PORT || 9000;
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));

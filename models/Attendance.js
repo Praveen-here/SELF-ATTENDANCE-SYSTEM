@@ -1,19 +1,13 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-const AttendanceSchema = new mongoose.Schema({
-    date: { type: String, required: true }, // Store as YYYY-MM-DD
+const attendanceSchema = new mongoose.Schema({
+    student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
     subject: { type: String, required: true },
-    student: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "Student", 
-        required: true 
-    },
+    date: { type: String, required: true },
     deviceId: { type: String, required: true },
-    status: { type: String, enum: ['present'], default: 'present' },
-    timestamp: { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 
-AttendanceSchema.index({ date: 1, subject: 1, student: 1 }, { unique: true });
-AttendanceSchema.index({ date: 1, subject: 1, deviceId: 1 }, { unique: true });
+// Compound unique index to prevent duplicate attendance submissions
+attendanceSchema.index({ student: 1, subject: 1, date: 1, deviceId: 1 }, { unique: true });
 
-module.exports = mongoose.model("Attendance", AttendanceSchema);
+module.exports = mongoose.model('Attendance', attendanceSchema);
