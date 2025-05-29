@@ -56,19 +56,23 @@ router.post("/submit-attendance", async (req, res) => {
             deviceId
         });
 
-        await attendance.save();  // Try saving directly; rely on unique index
+        // Attempt to save directly, rely on unique index for duplicate prevention
+        await attendance.save();
 
         res.json({ success: true, message: "Attendance submitted successfully" });
 
     } catch (error) {
+        console.error("Attendance submission error:", error);
+
+        // Check for duplicate key error (unique index violation)
         if (error.code === 11000) {
-            // Duplicate key error, attendance already exists
             return res.status(400).json({ message: "Attendance already submitted for this session" });
         }
-        console.error("Attendance submission error:", error);
+
         res.status(500).json({ message: "Server error: " + error.message });
     }
 });
+
 
 
 // New route: Check if attendance already submitted
