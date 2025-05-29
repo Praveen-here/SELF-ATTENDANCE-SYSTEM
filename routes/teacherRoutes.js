@@ -3,6 +3,7 @@ const router = express.Router();
 const qr = require('qr-image');
 const Attendance = require("../models/Attendance");
 const Student = require("../models/student");
+const bcrypt = require("bcryptjs");
 const baseUrl = process.env.BASE_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://self-attendance-system.onrender.com' 
     : 'http://localhost:9000');
@@ -15,14 +16,12 @@ router.get("/generate-qr", async (req, res) => {
             return res.status(400).json({ message: "Date and subject required" });
         }
 
-        // Use HTTPS always in production
         const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
         const attendanceUrl = `${baseUrl}/student-attendance?date=${encodeURIComponent(date)}&subject=${encodeURIComponent(subject)}&t=${Date.now()}`;
         
         const qr_png = qr.image(attendanceUrl, { type: 'png' });
         res.setHeader('Content-type', 'image/png');
         qr_png.pipe(res);
-
     } catch (error) {
         console.error("QR generation error:", error);
         res.status(500).json({ message: "Error generating QR code" });
@@ -35,8 +34,8 @@ router.get("/students", async (req, res) => {
         const students = await Student.find({}, "studentID name");
         res.json(students);
     } catch (err) {
-        console.error("❌ Error fetching students:", err);
-        res.status(500).json({ message: "❌ Error fetching students" });
+        console.error("Error fetching students:", err);
+        res.status(500).json({ message: "Error fetching students" });
     }
 });
 
@@ -45,43 +44,34 @@ router.get("/attendance-register", async (req, res) => {
     try {
         const { subject, date } = req.query;
         if (!subject) return res.status(400).json({ message: "Subject is required" });
-        
-        // Get attendance records for the specific date and subject
+
         const query = { subject };
         if (date) query.date = date;
-        
+
         const attendanceRecords = await Attendance.find(query)
             .populate('student', 'studentID name')
             .sort({ date: 1 });
 
-        // Extract unique dates from records
-        const dates = [...new Set(attendanceRecords.map(r => r.date.toISOString().split('T')[0]))].sort();
-        
-        // Create a map of date to present student IDs
+        const dates = [...new Set(attendanceRecords.map(r => r.date))].sort();
+
         const attendanceMap = {};
         attendanceRecords.forEach(record => {
-            const dateStr = record.date.toISOString().split('T')[0];
+            const dateStr = record.date;
             if (!attendanceMap[dateStr]) {
                 attendanceMap[dateStr] = [];
             }
             attendanceMap[dateStr].push(record.student.studentID);
         });
 
-        // Get all students who have ever attended this subject
         const attendedStudents = await Student.find({
-            _id: { $in: attendanceRecords.map(r => r.student) }
+            _id: { $in: attendanceRecords.map(r => r.student._id) }
         }, "studentID name");
 
-        res.json({ 
-            students: attendedStudents, 
-            subject, 
-            attendanceMap,
-            dates
-        });
+        res.json({ students: attendedStudents, subject, attendanceMap, dates });
 
     } catch (error) {
-        console.error("❌ Error in /attendance-register:", error);
-        res.status(500).json({ message: "❌ Server error" });
+        console.error("Error in /attendance-register:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
@@ -89,25 +79,15 @@ router.get("/attendance-register", async (req, res) => {
 router.post('/students', async (req, res) => {
     try {
         const { studentID, name, password } = req.body;
-        
-        // Check if student already exists
         const existing = await Student.findOne({ studentID });
-        if (existing) {
-            return res.status(400).json({ message: "Student ID already exists" });
-        }
-        
-        // Hash password
+        if (existing) return res.status(400).json({ message: "Student ID already exists" });
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password || studentID, salt);
-        
-        // Create new student
-        const student = new Student({
-            studentID,
-            name,
-            password: hashedPassword
-        });
-        
+
+        const student = new Student({ studentID, name, password: hashedPassword });
         await student.save();
+
         res.json({ success: true, student });
     } catch (error) {
         console.error("Error adding student:", error);
@@ -120,16 +100,15 @@ router.post('/reset-password', async (req, res) => {
     try {
         const { studentID } = req.body;
         const student = await Student.findOne({ studentID });
-        
+
         if (!student) {
             return res.status(404).json({ message: "Student not found" });
         }
-        
-        // Reset password to studentID
+
         const salt = await bcrypt.genSalt(10);
         student.password = await bcrypt.hash(studentID, salt);
         await student.save();
-        
+
         res.json({ success: true, message: "Password reset successfully" });
     } catch (error) {
         console.error("Password reset error:", error);

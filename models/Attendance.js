@@ -13,7 +13,6 @@ const AttendanceSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
 });
 
-// Add compound index to prevent duplicate entries
 AttendanceSchema.index({ date: 1, subject: 1, student: 1 }, { unique: true });
 AttendanceSchema.index({ date: 1, subject: 1, deviceId: 1 }, { unique: true });
 

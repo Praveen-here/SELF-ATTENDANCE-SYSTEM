@@ -3,7 +3,6 @@ const router = express.Router();
 const Student = require('../models/student');
 const Attendance = require('../models/Attendance');
 const bcrypt = require('bcryptjs');
-const mongoose = require('mongoose');
 
 // Student login
 router.post('/login', async (req, res) => {
@@ -38,7 +37,7 @@ router.get('/attendance-students', async (req, res) => {
     }
 });
 
-// Student Attendance Submission
+// Submit attendance
 router.post("/submit-attendance", async (req, res) => {
     try {
         const { studentID, date, subject, deviceId } = req.body;
@@ -50,43 +49,8 @@ router.post("/submit-attendance", async (req, res) => {
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Create date object in UTC
-        const dateObj = new Date(date);
-        if (isNaN(dateObj)) {
-            return res.status(400).json({ message: "Invalid date format" });
-        }
-        
-        const utcDate = new Date(Date.UTC(
-            dateObj.getUTCFullYear(),
-            dateObj.getUTCMonth(),
-            dateObj.getUTCDate()
-        ));
-        
-        // Check for existing attendance by student
-        const existingByStudent = await Attendance.findOne({ 
-            date: utcDate,
-            subject,
-            student: student._id 
-        });
-        
-        if (existingByStudent) {
-            return res.status(400).json({ message: "Attendance already marked for this student" });
-        }
-
-        // Check for existing attendance by device
-        const existingByDevice = await Attendance.findOne({ 
-            date: utcDate,
-            subject,
-            deviceId 
-        });
-        
-        if (existingByDevice) {
-            return res.status(400).json({ message: "Attendance already marked from this device" });
-        }
-
-        // Create new attendance record
         const attendance = new Attendance({
-            date: utcDate,
+            date,
             subject,
             student: student._id,
             deviceId
@@ -94,18 +58,13 @@ router.post("/submit-attendance", async (req, res) => {
 
         await attendance.save();
 
-        res.json({ success: true, message: "Attendance marked successfully" });
+        res.json({ success: true, message: "Attendance submitted successfully" });
 
     } catch (error) {
         console.error("Attendance submission error:", error);
-        
-        // Handle duplicate key error
         if (error.code === 11000) {
-            return res.status(400).json({ 
-                message: "Attendance already marked for this session" 
-            });
+            return res.status(400).json({ message: "Attendance already submitted (device/student)" });
         }
-        
         res.status(500).json({ message: "Server error: " + error.message });
     }
 });

@@ -6,14 +6,6 @@
 <title>Student Attendance</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <style>
-    /* Custom CSS */
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: 'Poppins', sans-serif;
-    }
-
     body {
         background: linear-gradient(to right, #141e30, #243b55);
         color: white;
@@ -22,6 +14,7 @@
         align-items: center;
         min-height: 100vh;
         padding: 20px;
+        font-family: 'Poppins', sans-serif;
     }
 
     .attendance-container {
@@ -41,43 +34,25 @@
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     }
 
-    #search {
+    select, button {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    select {
         background: rgba(255, 255, 255, 0.1);
         border: 2px solid rgba(255, 255, 255, 0.2);
         color: white;
-        transition: all 0.3s ease;
-    }
-
-    #search:focus {
-        border-color: #00d9ff;
-        box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
-    }
-
-    .student-list {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        overflow-y: auto;
-        max-height: 16rem;
-    }
-
-    .student-row {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .student-row:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .selected-row {
-        background: rgba(0, 217, 255, 0.2);
     }
 
     button {
         background: linear-gradient(to right, #00d9ff, #0099ff);
-        transition: all 0.3s ease;
-        letter-spacing: 0.5px;
+        color: white;
+        font-weight: 600;
         cursor: pointer;
+        transition: all 0.3s ease;
     }
 
     button:hover {
@@ -94,44 +69,14 @@
 
     #alert {
         border-radius: 6px;
-        transition: all 0.3s ease;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-align: center;
     }
 
-    .login-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .login-input {
-        background: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        padding: 12px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        width: 100%;
-    }
-
-    .login-input:focus {
-        border-color: #00d9ff;
-        box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
-        outline: none;
-    }
-    
-    .login-btn {
-        background: linear-gradient(to right, #00d9ff, #0099ff);
-        transition: all 0.3s ease;
-        letter-spacing: 0.5px;
-    }
-
-    @media (max-width: 768px) {
-        .attendance-container {
-            padding: 1.5rem;
-        }
-        h1 {
-            font-size: 1.5rem;
-        }
+    #success-message {
+        text-align: center;
+        padding: 2rem;
     }
 </style>
 </head>
@@ -139,260 +84,122 @@
 <div class="attendance-container">
     <h1 id="page-title">Mark Attendance</h1>
 
-    <div id="alert" class="hidden mb-4 p-3 rounded"></div>
-    <div id="debug" class="hidden text-xs bg-gray-800 p-2 mt-2 rounded"></div>
-
-    <!-- Login Form -->
-    <div id="login-form" class="login-form">
-        <div>
-            <input type="text" id="student-id" placeholder="Student ID" class="login-input" required>
-        </div>
-        <div>
-            <input type="password" id="password" placeholder="Password" class="login-input" required>
-        </div>
-        <button id="login-button" class="mt-2 w-full py-3 rounded-lg text-white font-semibold login-btn">
-            Login
-        </button>
+    <div id="alert" class="hidden"></div>
+    
+    <div id="attendance-form">
+        <select id="student-select">
+            <option value="">Select your name</option>
+            <!-- Students will be populated here -->
+        </select>
+        
+        <button id="submit-btn">Submit Attendance</button>
     </div>
-
-    <!-- Attendance Form -->
-    <div id="attendance-form" class="hidden">
-        <div class="mb-4">
-            <input type="text" id="search" placeholder="Search by name or ID"
-                   class="w-full p-3 rounded-lg mb-4">
-        </div>
-
-        <div class="student-list">
-            <table class="w-full">
-                <tbody id="students"></tbody>
-            </table>
-        </div>
-
-        <button id="submit-attendance" class="mt-6 w-full py-3 rounded-lg text-white font-semibold">
-            Mark Attendance
-        </button>
+    
+    <div id="success-message" class="hidden">
+        <h2 class="text-2xl font-bold text-green-500 mb-4">Attendance Submitted!</h2>
+        <p>Thank you for submitting your attendance.</p>
+        <p class="mt-2 text-sm text-gray-300">You cannot submit again for this session.</p>
     </div>
 </div>
 
 <script>
-    // DOM Elements
-    const loginButton = document.getElementById('login-button');
-    const submitButton = document.getElementById('submit-attendance');
-    const studentIdInput = document.getElementById('student-id');
-    const passwordInput = document.getElementById('password');
-    const searchInput = document.getElementById('search');
-    const debugDiv = document.getElementById('debug');
-    
-    let selectedStudent = null;
+    // Get URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const subject = urlParams.get('subject');
     const date = urlParams.get('date');
-    const t = parseInt(urlParams.get('t'));
-
-    // Enable debug mode
-    const debugMode = true;
     
-    function debugLog(message) {
-        if (debugMode) {
-            debugDiv.classList.remove('hidden');
-            debugDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
-        }
-    }
-
-    // Validate parameters on load
-    if (!date || !subject || !t) {
-        document.body.innerHTML = `
-            <div class="p-4 text-center text-red-500">
-                Invalid attendance link. Please scan a valid QR code.
-            </div>
-        `;
-        debugLog("Invalid QR parameters");
-        throw new Error("Invalid QR parameters");
-    } 
-    else {
-        // Check QR code expiration
-        const now = Date.now();
-        const expirationTime = 10 * 60 * 1000;
-        
-        if (now - t > expirationTime) {
-            document.body.innerHTML = `
-                <div class="p-4 text-center text-red-500">
-                    This QR code has expired. Please request a new one.
-                </div>
-            `;
-            debugLog("QR code expired");
-            throw new Error("QR code expired");
-        }
-        
-        document.title = `${subject} Attendance - ${date}`;
-        debugLog("QR validated successfully");
-    }
-
+    // Get DOM elements
+    const studentSelect = document.getElementById('student-select');
+    const submitBtn = document.getElementById('submit-btn');
+    const alertDiv = document.getElementById('alert');
+    const attendanceForm = document.getElementById('attendance-form');
+    const successMessage = document.getElementById('success-message');
+    
     // Generate device ID
     let deviceId = localStorage.getItem('deviceId');
     if (!deviceId) {
         deviceId = self.crypto.randomUUID();
         localStorage.setItem('deviceId', deviceId);
-        debugLog(`Generated new device ID: ${deviceId}`);
-    } else {
-        debugLog(`Using existing device ID: ${deviceId}`);
     }
-
-    // Show login form initially
-    document.getElementById('login-form').classList.remove('hidden');
-    document.getElementById('attendance-form').classList.add('hidden');
-
-    // Event Listeners
-    loginButton.addEventListener('click', login);
-    submitButton.addEventListener('click', submitAttendance);
-
-    // Login function
-    async function login() {
-        const studentID = studentIdInput.value;
-        const password = passwordInput.value;
-        
-        if (!studentID || !password) {
-            return showAlert('Please enter both student ID and password', 'red');
-        }
-        
-        try {
-            debugLog(`Attempting login for: ${studentID}`);
-            loginButton.disabled = true;
-            loginButton.textContent = 'Logging in...';
-            
-            const res = await fetch('/student/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentID, password })
-            });
-            
-            const data = await res.json();
-            
-            if (!res.ok) {
-                debugLog(`Login failed: ${data.message || res.statusText}`);
-                throw new Error(data.message || 'Login failed. Please check your credentials.');
-            }
-            
-            debugLog(`Login successful for: ${studentID}`);
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('attendance-form').classList.remove('hidden');
-            loadStudents();
-        } catch (error) {
-            showAlert('Login failed: ' + error.message, 'red');
-        } finally {
-            loginButton.disabled = false;
-            loginButton.textContent = 'Login';
-        }
+    
+    // Validate parameters
+    if (!date || !subject) {
+        showAlert('Invalid attendance link. Please scan a valid QR code.', 'red');
+        return;
     }
-
-    // Load students
+    
+    document.title = `${subject} Attendance - ${date}`;
+    
+    // Load students into dropdown
     async function loadStudents() {
         try {
-            debugLog("Loading student list...");
             const res = await fetch('/student/attendance-students');
+            if (!res.ok) throw new Error('Failed to load students');
             
-            if (!res.ok) {
-                const error = await res.text();
-                throw new Error(`Failed to fetch students: ${res.status} ${error}`);
-            }
-
             const students = await res.json();
-            const tbody = document.getElementById('students');
-
-            tbody.innerHTML = students.map(student => `
-                <tr class="cursor-pointer student-row"
-                    data-id="${student.studentID}"
-                    onclick="selectStudent('${student.studentID}', '${student.name}', event)">
-                    <td class="p-3">${student.studentID}</td>
-                    <td class="p-3">${student.name}</td>
-                </tr>
-            `).join('');
-
-            debugLog(`Loaded ${students.length} students`);
-
-            // Add search functionality
-            searchInput.addEventListener('input', (e) => {
-                const search = e.target.value.toLowerCase();
-                document.querySelectorAll('.student-row').forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(search) ? '' : 'none';
-                });
+            
+            // Populate dropdown
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.studentID;
+                option.textContent = `${student.studentID} - ${student.name}`;
+                studentSelect.appendChild(option);
             });
+            
         } catch (error) {
-            debugLog(`Error loading students: ${error.message}`);
             showAlert('Error loading students: ' + error.message, 'red');
         }
     }
-
-    // Select student
-    function selectStudent(id, name, event) {
-        selectedStudent = id;
-        document.querySelectorAll('.student-row').forEach(row => {
-            row.classList.remove('selected-row');
-        });
-        event.currentTarget.classList.add('selected-row');
-        debugLog(`Selected student: ${name} (${id})`);
-    }
-
+    
     // Submit attendance
     async function submitAttendance() {
-        if (!selectedStudent) {
-            return showAlert('Please select a student', 'red');
+        const studentID = studentSelect.value;
+        
+        if (!studentID) {
+            showAlert('Please select your name', 'red');
+            return;
         }
-
+        
         try {
-            debugLog(`Submitting attendance for: ${selectedStudent}`);
-            submitButton.disabled = true;
-            submitButton.textContent = 'Submitting...';
-            
-            const payload = {
-                studentID: selectedStudent,
-                date,
-                subject,
-                deviceId
-            };
-            
-            debugLog(`Payload: ${JSON.stringify(payload)}`);
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
             
             const res = await fetch('/student/submit-attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ studentID, date, subject, deviceId })
             });
-
+            
             const data = await res.json();
             
             if (!res.ok) {
-                debugLog(`Submission failed: ${data.message || res.statusText}`);
-                throw new Error(data.message || 'Attendance submission failed');
+                throw new Error(data.message || 'Submission failed');
             }
-
-            debugLog("Attendance submitted successfully");
-            showAlert('Attendance marked successfully!', 'green');
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            
+            // Show success message
+            attendanceForm.classList.add('hidden');
+            successMessage.classList.remove('hidden');
+            
         } catch (error) {
-            const msg = error.message.includes('duplicate')
-                ? 'Attendance already marked for this session'
-                : error.message;
-                
-            debugLog(`Error: ${error.message}`);
-            showAlert(msg, 'red');
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = 'Mark Attendance';
+            showAlert('Submission error: ' + error.message, 'red');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Attendance';
         }
     }
-
+    
     // Show alert
-    function showAlert(message, color = 'blue') {
-        const alertDiv = document.getElementById('alert');
+    function showAlert(message, color = 'red') {
         alertDiv.textContent = message;
-        alertDiv.className = `bg-${color}-500/20 text-${color}-300 p-3 rounded`;
+        alertDiv.className = `bg-${color}-500/20 text-${color}-300`;
         alertDiv.classList.remove('hidden');
-        setTimeout(() => alertDiv.classList.add('hidden'), 3000);
+        setTimeout(() => alertDiv.classList.add('hidden'), 5000);
     }
+    
+    // Event listeners
+    submitBtn.addEventListener('click', submitAttendance);
+    
+    // Initialize
+    loadStudents();
 </script>
 </body>
 </html>
