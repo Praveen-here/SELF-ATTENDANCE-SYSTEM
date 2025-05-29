@@ -49,18 +49,6 @@ router.post("/submit-attendance", async (req, res) => {
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
 
-        // Check if attendance already exists
-        const existingAttendance = await Attendance.findOne({
-            student: student._id,
-            subject,
-            date,
-            deviceId
-        });
-
-        if (existingAttendance) {
-            return res.status(400).json({ message: "Attendance already submitted for this session" });
-        }
-
         const attendance = new Attendance({
             date,
             subject,
@@ -68,15 +56,20 @@ router.post("/submit-attendance", async (req, res) => {
             deviceId
         });
 
-        await attendance.save();
+        await attendance.save();  // Try saving directly; rely on unique index
 
         res.json({ success: true, message: "Attendance submitted successfully" });
 
     } catch (error) {
+        if (error.code === 11000) {
+            // Duplicate key error, attendance already exists
+            return res.status(400).json({ message: "Attendance already submitted for this session" });
+        }
         console.error("Attendance submission error:", error);
         res.status(500).json({ message: "Server error: " + error.message });
     }
 });
+
 
 // New route: Check if attendance already submitted
 router.post("/check-attendance", async (req, res) => {
