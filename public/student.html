@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Student Attendance</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <style>
     body {
         background: linear-gradient(to right, #141e30, #243b55);
@@ -103,6 +103,7 @@
 </div>
 
 <script>
+async function init() {
     // Get URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const subject = urlParams.get('subject');
@@ -199,7 +200,10 @@
     submitBtn.addEventListener('click', submitAttendance);
     
     // Initialize
-    loadStudents();
+    await loadStudents();
+}
+
+init();
 </script>
 </body>
 </html>
