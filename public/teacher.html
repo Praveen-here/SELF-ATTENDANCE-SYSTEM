@@ -407,19 +407,19 @@
         return;
       }
       
-      try {
+            try {
         const res = await fetch('/teacher/students', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            studentID, 
-            name, 
-            password: password || studentID // Use student ID if password is empty
+          body: JSON.stringify({
+            studentID,
+            name,
+            password: password || studentID
           })
         });
-        
+
         if (res.ok) {
-          alert('Student added successfully!');
+          alert('Student added successfully');
           document.getElementById('new-student-id').value = '';
           document.getElementById('new-student-name').value = '';
           document.getElementById('new-student-password').value = '';
@@ -433,9 +433,6 @@
         alert('Failed to add student');
       }
     }
-
-    // Initialize default tab
-    document.addEventListener("DOMContentLoaded", () => openTab(event, 'MarkAttendance'));
   </script>
 </body>
 </html>

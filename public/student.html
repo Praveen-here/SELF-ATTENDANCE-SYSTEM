@@ -126,6 +126,7 @@ async function init() {
     // Validate parameters
     if (!date || !subject) {
         showAlert('Invalid attendance link. Please scan a valid QR code.', 'red');
+        submitBtn.disabled = true;
         return;
     }
     
@@ -149,6 +150,29 @@ async function init() {
             
         } catch (error) {
             showAlert('Error loading students: ' + error.message, 'red');
+            submitBtn.disabled = true;
+        }
+    }
+    
+    // Check if attendance already submitted
+    async function checkAttendanceAlreadySubmitted(studentID) {
+        try {
+            const res = await fetch('/student/check-attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ studentID, date, subject, deviceId })
+            });
+            const data = await res.json();
+            if (res.ok && data.alreadySubmitted) {
+                attendanceForm.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+                submitBtn.disabled = true;
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking attendance:', error);
+            return false;
         }
     }
     
@@ -170,36 +194,52 @@ async function init() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ studentID, date, subject, deviceId })
             });
-            
             const data = await res.json();
             
-            if (!res.ok) {
-                throw new Error(data.message || 'Submission failed');
+            if (res.ok) {
+                attendanceForm.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+                showAlert('', ''); // Clear alert
+            } else {
+                showAlert(data.message || 'Error submitting attendance', 'red');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Attendance';
             }
-            
-            // Show success message
-            attendanceForm.classList.add('hidden');
-            successMessage.classList.remove('hidden');
-            
         } catch (error) {
-            showAlert('Submission error: ' + error.message, 'red');
+            showAlert('Network error: ' + error.message, 'red');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit Attendance';
         }
     }
     
-    // Show alert
-    function showAlert(message, color = 'red') {
+    // Show alert message
+    function showAlert(message, color) {
+        if (!message) {
+            alertDiv.classList.add('hidden');
+            alertDiv.textContent = '';
+            return;
+        }
         alertDiv.textContent = message;
-        alertDiv.className = `bg-${color}-500/20 text-${color}-300`;
+        alertDiv.style.backgroundColor = color === 'red' ? '#e3342f' : '#38c172';
         alertDiv.classList.remove('hidden');
-        setTimeout(() => alertDiv.classList.add('hidden'), 5000);
     }
     
     // Event listeners
     submitBtn.addEventListener('click', submitAttendance);
     
-    // Initialize
+    studentSelect.addEventListener('change', async () => {
+        const studentID = studentSelect.value;
+        if (studentID) {
+            await checkAttendanceAlreadySubmitted(studentID);
+        } else {
+            attendanceForm.classList.remove('hidden');
+            successMessage.classList.add('hidden');
+            submitBtn.disabled = false;
+            showAlert('', '');
+        }
+    });
+    
+    // Initial load
     await loadStudents();
 }
 

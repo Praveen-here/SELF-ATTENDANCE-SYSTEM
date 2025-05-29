@@ -78,4 +78,29 @@ router.post("/submit-attendance", async (req, res) => {
     }
 });
 
+// New route: Check if attendance already submitted
+router.post("/check-attendance", async (req, res) => {
+    try {
+        const { studentID, date, subject, deviceId } = req.body;
+        if (!studentID || !date || !subject || !deviceId) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const student = await Student.findOne({ studentID });
+        if (!student) return res.status(404).json({ message: "Student not found" });
+
+        const existingAttendance = await Attendance.findOne({
+            student: student._id,
+            subject,
+            date,
+            deviceId
+        });
+
+        res.json({ alreadySubmitted: !!existingAttendance });
+    } catch (error) {
+        console.error("Check attendance error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 module.exports = router;
