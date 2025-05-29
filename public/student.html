@@ -155,65 +155,64 @@ async function init() {
     }
     
     // Check if attendance already submitted
-    async function checkAttendanceAlreadySubmitted(studentID) {
-        try {
-            const res = await fetch('/student/check-attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentID, date, subject, deviceId })
-            });
-            const data = await res.json();
-            if (res.ok && data.alreadySubmitted) {
-                attendanceForm.classList.add('hidden');
-                successMessage.classList.remove('hidden');
-                submitBtn.disabled = true;
-                return true;
-            }
-            attendanceForm.classList.remove('hidden');
-            successMessage.classList.add('hidden');
-            submitBtn.disabled = false;
-            return false;
-        } catch (error) {
-            console.error('Error checking attendance:', error);
-            return false;
+async function checkAttendanceAlreadySubmitted() {
+    try {
+        const res = await fetch('/student/check-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, subject, deviceId })
+        });
+        const data = await res.json();
+        if (res.ok && data.alreadySubmitted) {
+            attendanceForm.classList.add('hidden');
+            successMessage.classList.remove('hidden');
+            submitBtn.disabled = true;
+            return true;
         }
+        return false;
+    } catch (error) {
+        console.error('Error checking attendance:', error);
+        return false;
     }
+}
     
     // Submit attendance
-    async function submitAttendance() {
-        const studentID = studentSelect.value;
-        
-        if (!studentID) {
-            showAlert('Please select your name', 'red');
-            return;
-        }
-        
-        try {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
-            
-            const res = await fetch('/student/submit-attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentID, date, subject, deviceId })
-            });
-            const data = await res.json();
-            
-            if (res.ok) {
-                attendanceForm.classList.add('hidden');
-                successMessage.classList.remove('hidden');
-                showAlert('', ''); // Clear alert
-            } else {
-                showAlert(data.message || 'Error submitting attendance', 'red');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Attendance';
-            }
-        } catch (error) {
-            showAlert('Network error: ' + error.message, 'red');
+    // Submit attendance
+async function submitAttendance() {
+    const studentID = studentSelect.value;
+
+    if (!studentID) {
+        showAlert('Please select your name', 'red');
+        return;
+    }
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+
+        const res = await fetch('/student/submit-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentID, date, subject, deviceId })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            attendanceForm.classList.add('hidden');
+            successMessage.classList.remove('hidden');
+            showAlert('', '');
+        } else {
+            showAlert(data.message || 'Error submitting attendance', 'red');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit Attendance';
         }
+    } catch (error) {
+        showAlert('Network error: ' + error.message, 'red');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Attendance';
     }
+}
     
     // Show alert message
     function showAlert(message, color) {
@@ -233,7 +232,7 @@ async function init() {
     studentSelect.addEventListener('change', async () => {
         const studentID = studentSelect.value;
         if (studentID) {
-            await checkAttendanceAlreadySubmitted(studentID);
+            await checkAttendanceAlreadySubmitted();
         } else {
             attendanceForm.classList.remove('hidden');
             successMessage.classList.add('hidden');

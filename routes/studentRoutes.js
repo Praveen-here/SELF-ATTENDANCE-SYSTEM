@@ -56,42 +56,32 @@ router.post("/submit-attendance", async (req, res) => {
             deviceId
         });
 
-        // Attempt to save directly, rely on unique index for duplicate prevention
-        await attendance.save();
+        await attendance.save(); // Let MongoDB handle uniqueness
 
         res.json({ success: true, message: "Attendance submitted successfully" });
 
     } catch (error) {
-        console.error("Attendance submission error:", error);
-
-        // Check for duplicate key error (unique index violation)
         if (error.code === 11000) {
-            return res.status(400).json({ message: "Attendance already submitted for this session" });
+            return res.status(400).json({ message: "Attendance already submitted from this device" });
         }
-
-        res.status(500).json({ message: "Server error: " + error.message });
+        console.error("Attendance submission error:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
+
 
 
 
 // New route: Check if attendance already submitted
 router.post("/check-attendance", async (req, res) => {
     try {
-        const { studentID, date, subject, deviceId } = req.body;
-        if (!studentID || !date || !subject || !deviceId) {
+        const { date, subject, deviceId } = req.body;
+
+        if (!date || !subject || !deviceId) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
-        const student = await Student.findOne({ studentID });
-        if (!student) return res.status(404).json({ message: "Student not found" });
-
-        const existingAttendance = await Attendance.findOne({
-            student: student._id,
-            subject,
-            date,
-            deviceId
-        });
+        const existingAttendance = await Attendance.findOne({ date, subject, deviceId });
 
         res.json({ alreadySubmitted: !!existingAttendance });
     } catch (error) {
@@ -99,5 +89,6 @@ router.post("/check-attendance", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+
 
 module.exports = router;
