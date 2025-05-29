@@ -1,5 +1,3 @@
-MONGO_URI=mongodb+srv://supracar65:y8y8TUrAjwrMcxRV@cluster0.2zzve.mongodb.net/attendance?retryWrites=true&w=majority&appName=Cluster0
-PORT=9000
 .env
 node_modules/
 README.md
