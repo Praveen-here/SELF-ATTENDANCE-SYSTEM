@@ -1,281 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Student Attendance</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
-<style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Attendance</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <style>
     body {
-        background: linear-gradient(to right, #141e30, #243b55);
-        color: white;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        padding: 20px;
-        font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #141e30, #243b55);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      font-family: 'Poppins', sans-serif;
     }
 
     .attendance-container {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 10px;
-        padding: 2rem;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        width: 100%;
-        max-width: 500px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 480px;
     }
 
     h1 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        font-size: 1.8rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    select, button {
-        width: 100%;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 1rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 1.8rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     }
 
     select {
-        background: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        color: white;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      font-weight: 500;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      background-size: 1.2em;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #00d9ff;
+      box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.3);
     }
 
     button {
-        background: linear-gradient(to right, #00d9ff, #0099ff);
-        color: white;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      background: linear-gradient(to right, #00d9ff, #0099ff);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
     }
 
     button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 217, 255, 0.4);
     }
 
     button:disabled {
-        background: #cccccc;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
+      background: #888888;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     #alert {
-        border-radius: 6px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        text-align: center;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-weight: 500;
     }
 
     #success-message {
-        text-align: center;
-        padding: 2rem;
+      text-align: center;
+      padding: 2rem 1rem;
     }
-</style>
+  </style>
 </head>
 <body>
-<div class="attendance-container">
+  <div class="attendance-container">
     <h1 id="page-title">Mark Attendance</h1>
 
     <div id="alert" class="hidden"></div>
-    
-    <div id="attendance-form">
-        <select id="student-select">
-            <option value="">Select your name</option>
-            <!-- Students will be populated here -->
-        </select>
-        
-        <button id="submit-btn">Submit Attendance</button>
-    </div>
-    
-    <div id="success-message" class="hidden">
-        <h2 class="text-2xl font-bold text-green-500 mb-4">Attendance Submitted!</h2>
-        <p>Thank you for submitting your attendance.</p>
-        <p class="mt-2 text-sm text-gray-300">You cannot submit again for this session.</p>
-    </div>
-</div>
 
-<script>
-async function init() {
-    // Get URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const subject = urlParams.get('subject');
-    const date = urlParams.get('date');
-    
-    // Get DOM elements
-    const studentSelect = document.getElementById('student-select');
-    const submitBtn = document.getElementById('submit-btn');
-    const alertDiv = document.getElementById('alert');
-    const attendanceForm = document.getElementById('attendance-form');
-    const successMessage = document.getElementById('success-message');
-    
-    // Generate device ID
-    let deviceId = localStorage.getItem('deviceId');
-    if (!deviceId) {
+    <div id="attendance-form">
+      <select id="student-select">
+        <option value="">Select your name</option>
+        <!-- Students will be populated here -->
+      </select>
+
+      <button id="submit-btn">Submit Attendance</button>
+    </div>
+
+    <div id="success-message" class="hidden">
+      <h2 class="text-2xl font-bold text-green-500 mb-4">Attendance Submitted!</h2>
+      <p>Thank you for submitting your attendance.</p>
+      <p class="mt-2 text-sm text-gray-300">You cannot submit again for this session.</p>
+    </div>
+  </div>
+
+  <script>
+    async function init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const subject = urlParams.get('subject');
+      const date = urlParams.get('date');
+
+      const studentSelect = document.getElementById('student-select');
+      const submitBtn = document.getElementById('submit-btn');
+      const alertDiv = document.getElementById('alert');
+      const attendanceForm = document.getElementById('attendance-form');
+      const successMessage = document.getElementById('success-message');
+
+      let deviceId = localStorage.getItem('deviceId');
+      if (!deviceId) {
         deviceId = self.crypto.randomUUID();
         localStorage.setItem('deviceId', deviceId);
-    }
-    
-    // Validate parameters
-    if (!date || !subject) {
+      }
+
+      if (!date || !subject) {
         showAlert('Invalid attendance link. Please scan a valid QR code.', 'red');
         submitBtn.disabled = true;
         return;
-    }
-    
-    document.title = `${subject} Attendance - ${date}`;
-    
-    // Load students into dropdown
-    async function loadStudents() {
+      }
+
+      document.title = `${subject} Attendance - ${date}`;
+
+      async function loadStudents() {
         try {
-            const res = await fetch('/student/attendance-students');
-            if (!res.ok) throw new Error('Failed to load students');
-            
-            const students = await res.json();
-            
-            // Populate dropdown
-            students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.studentID;
-                option.textContent = `${student.studentID} - ${student.name}`;
-                studentSelect.appendChild(option);
-            });
-            
+          const res = await fetch('/student/attendance-students');
+          if (!res.ok) throw new Error('Failed to load students');
+          const students = await res.json();
+
+          students.forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.studentID;
+            option.textContent = `${student.studentID} - ${student.name}`;
+            studentSelect.appendChild(option);
+          });
         } catch (error) {
-            showAlert('Error loading students: ' + error.message, 'red');
-            submitBtn.disabled = true;
+          showAlert('Error loading students: ' + error.message, 'red');
+          submitBtn.disabled = true;
         }
-    }
-    
-    // Check if attendance already submitted
-    async function checkAttendanceAlreadySubmitted(studentID) {
+      }
+
+      async function checkAttendanceAlreadySubmitted(studentID) {
         try {
-            const res = await fetch('/student/check-attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentID, date, subject, deviceId })
-            });
-            const data = await res.json();
-            if (res.ok && data.alreadySubmitted) {
-                return true;
-            }
-            return false;
+          const res = await fetch('/student/check-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentID, date, subject, deviceId })
+          });
+          const data = await res.json();
+          return res.ok && data.alreadySubmitted;
         } catch (error) {
-            console.error('Error checking attendance:', error);
-            return false;
+          console.error('Error checking attendance:', error);
+          return false;
         }
-    }
-    
-    // Submit attendance
-    async function submitAttendance() {
-    const studentID = studentSelect.value;
-    if (!studentID) {
-        showAlert('Please select your name', 'red');
-        return;
-    }
+      }
 
-    if (!navigator.geolocation) {
-        showAlert('Geolocation is not supported by your browser', 'red');
-        return;
-    }
+      async function submitAttendance() {
+        const studentID = studentSelect.value;
+        if (!studentID) {
+          showAlert('Please select your name', 'red');
+          return;
+        }
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Requesting location...';
+        if (!navigator.geolocation) {
+          showAlert('Geolocation is not supported by your browser', 'red');
+          return;
+        }
 
-    navigator.geolocation.getCurrentPosition(async position => {
-        const { latitude, longitude } = position.coords;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Requesting location...';
 
-        try {
+        navigator.geolocation.getCurrentPosition(async position => {
+          const { latitude, longitude } = position.coords;
+
+          try {
             submitBtn.textContent = 'Submitting...';
 
             const res = await fetch('/student/submit-attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentID, date, subject, deviceId, latitude, longitude })
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ studentID, date, subject, deviceId, latitude, longitude })
             });
 
             const data = await res.json();
 
             if (res.ok) {
-                attendanceForm.classList.add('hidden');
-                successMessage.classList.remove('hidden');
-                showAlert('', '');
+              attendanceForm.classList.add('hidden');
+              successMessage.classList.remove('hidden');
+              showAlert('', '');
             } else {
-                showAlert(data.message || 'Error submitting attendance', 'red');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Attendance';
+              showAlert(data.message || 'Error submitting attendance', 'red');
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit Attendance';
             }
-        } catch (error) {
+          } catch (error) {
             showAlert('Network error: ' + error.message, 'red');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit Attendance';
-        }
-    }, error => {
-        let msg = 'Error retrieving location.';
-        if (error.code === 1) msg = 'Please enable location access to mark attendance.';
-        else if (error.code === 2) msg = 'Location unavailable. Try again.';
-        else if (error.code === 3) msg = 'Location request timed out.';
-        showAlert(msg, 'red');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Attendance';
-    });
-}
+          }
+        }, error => {
+          let msg = 'Error retrieving location.';
+          if (error.code === 1) msg = 'Please enable location access to mark attendance.';
+          else if (error.code === 2) msg = 'Location unavailable. Try again.';
+          else if (error.code === 3) msg = 'Location request timed out.';
+          showAlert(msg, 'red');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Attendance';
+        });
+      }
 
-    
-    // Show alert message
-    function showAlert(message, color) {
+      function showAlert(message, color) {
         if (!message) {
-            alertDiv.classList.add('hidden');
-            alertDiv.textContent = '';
-            return;
+          alertDiv.classList.add('hidden');
+          alertDiv.textContent = '';
+          return;
         }
         alertDiv.textContent = message;
         alertDiv.style.backgroundColor = color === 'red' ? '#e3342f' : '#38c172';
         alertDiv.classList.remove('hidden');
-    }
-    
-    // Event listeners
-    submitBtn.addEventListener('click', submitAttendance);
-    
-    studentSelect.addEventListener('change', async () => {
+      }
+
+      submitBtn.addEventListener('click', submitAttendance);
+
+      studentSelect.addEventListener('change', async () => {
         const studentID = studentSelect.value;
-        
-        // Disable submit button immediately to prevent double submits
+
         submitBtn.disabled = true;
         showAlert('Checking attendance...', '#38c172');
-        
+
         if (studentID) {
-            const alreadySubmitted = await checkAttendanceAlreadySubmitted(studentID);
-            if (alreadySubmitted) {
-                attendanceForm.classList.add('hidden');
-                successMessage.classList.remove('hidden');
-                submitBtn.disabled = true;
-            } else {
-                attendanceForm.classList.remove('hidden');
-                successMessage.classList.add('hidden');
-                submitBtn.disabled = false;
-            }
-            showAlert('', '');
-        } else {
+          const alreadySubmitted = await checkAttendanceAlreadySubmitted(studentID);
+          if (alreadySubmitted) {
+            attendanceForm.classList.add('hidden');
+            successMessage.classList.remove('hidden');
+            submitBtn.disabled = true;
+          } else {
             attendanceForm.classList.remove('hidden');
             successMessage.classList.add('hidden');
             submitBtn.disabled = false;
-            showAlert('', '');
+          }
+          showAlert('', '');
+        } else {
+          attendanceForm.classList.remove('hidden');
+          successMessage.classList.add('hidden');
+          submitBtn.disabled = false;
+          showAlert('', '');
         }
-    });
-    
-    // Initial load
-    await loadStudents();
-}
+      });
 
-init();
-</script>
+      await loadStudents();
+    }
+
+    init();
+  </script>
 </body>
 </html>

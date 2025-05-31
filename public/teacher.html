@@ -62,21 +62,17 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba(113, 128, 150, 0.3);
     }
-    
-    .checkbox-cell {
-      width: 20px;
-    }
   </style>
 </head>
 
 <body class="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white min-h-screen p-4">
-  <div class="max-w-4xl mx-auto glass-card rounded-2xl p-6 shadow-xl">
+  <div class="max-w-6xl mx-auto glass-card rounded-2xl p-4 md:p-6 shadow-xl">
 
     <!-- Tab Buttons -->
-    <div class="flex gap-2 mb-6">
-      <button class="tablinks active flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'MarkAttendance')">Generate QR</button>
-      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
-      <button class="tablinks flex-1 px-4 py-2 rounded-lg text-sm gradient-btn" onclick="openTab(event, 'ManageStudents')">Manage Students</button>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-6">
+      <button class="tablinks active px-4 py-2 rounded-lg text-sm gradient-btn w-full" onclick="openTab(event, 'MarkAttendance')">Generate QR</button>
+      <button class="tablinks px-4 py-2 rounded-lg text-sm gradient-btn w-full" onclick="openTab(event, 'ViewAttendance')">View Attendance</button>
+      <button class="tablinks px-4 py-2 rounded-lg text-sm gradient-btn w-full" onclick="openTab(event, 'ManageStudents')">Manage Students</button>
     </div>
 
     <!-- Mark Attendance Tab -->
@@ -116,40 +112,39 @@
     </div>
 
     <!-- View Attendance Tab -->
-    <!-- Replace the View Attendance tab content with this -->
-<div id="ViewAttendance" class="tabcontent hidden">
-    <h2 class="text-xl font-semibold mb-4">View Attendance</h2>
+    <div id="ViewAttendance" class="tabcontent hidden">
+      <h2 class="text-xl font-semibold mb-4">View Attendance</h2>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-            <label for="subjectSelect" class="block text-sm mb-1">Select Subject:</label>
-            <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg text-sm">
-                <option value="">-- Select Subject --</option>
-                <option value="ML">Machine Learning</option>
-                <option value="Software Testing">Software Testing</option>
-                <option value="MAD">Mobile App Development</option>
-                <option value="ECD">Embedded Computing & Design</option>
-            </select>
+          <label for="subjectSelect" class="block text-sm mb-1">Select Subject:</label>
+          <select id="subjectSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg text-sm">
+            <option value="">-- Select Subject --</option>
+            <option value="ML">Machine Learning</option>
+            <option value="Software Testing">Software Testing</option>
+            <option value="MAD">Mobile App Development</option>
+            <option value="ECD">Embedded Computing & Design</option>
+          </select>
         </div>
         <div>
-            <label for="dateSelect" class="block text-sm mb-1">Select Date (optional):</label>
-            <input type="date" id="dateSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg text-sm">
+          <label for="dateSelect" class="block text-sm mb-1">Select Date (optional):</label>
+          <input type="date" id="dateSelect" class="w-full p-2 bg-gray-700 text-white rounded-lg text-sm">
         </div>
-    </div>
+      </div>
 
-    <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn"> 
+      <button onclick="loadRegister()" type="button" class="w-full text-white py-2 rounded-lg text-sm gradient-btn"> 
         Load Attendance
-    </button>
-    
-    <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 p-4">
+      </button>
+
+      <div id="attendanceRegisterContainer" class="overflow-x-auto mt-4 border rounded-lg shadow bg-gray-900 p-4">
         <p class="text-gray-400 text-center">Only students who have marked attendance will appear here</p>
+      </div>
     </div>
-</div>
 
     <!-- Manage Students Tab -->
     <div id="ManageStudents" class="tabcontent hidden">
       <h2 class="text-xl font-semibold mb-4">Manage Students</h2>
-      
+
       <div class="glass-card p-4 mb-6">
         <h3 class="text-lg mb-3">Add New Student</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,24 +158,24 @@
           </div>
           <div>
             <label class="block text-sm mb-1">Password:</label>
-            <input type="password" id="new-student-password" class="w-full p-2 glass-input rounded-lg" value="">
+            <input type="password" id="new-student-password" class="w-full p-2 glass-input rounded-lg">
             <p class="text-xs text-gray-400 mt-1">Default: Student ID</p>
           </div>
           <div class="flex items-end">
-            <button onclick="addStudent()" class="gradient-btn py-2 px-4 rounded-lg">
+            <button onclick="addStudent()" class="gradient-btn py-2 px-4 rounded-lg w-full">
               Add Student
             </button>
           </div>
         </div>
       </div>
-      
-      <div class="glass-card p-4">
+
+      <div class="glass-card p-4 overflow-x-auto">
         <h3 class="text-lg mb-3">Student List</h3>
-        <table class="w-full table-auto">
+        <table class="w-full table-auto text-sm text-left border-collapse">
           <thead>
             <tr class="bg-gray-800">
-              <th class="p-2 text-left">ID</th>
-              <th class="p-2 text-left">Name</th>
+              <th class="p-2">ID</th>
+              <th class="p-2">Name</th>
               <th class="p-2 text-center">Actions</th>
             </tr>
           </thead>
