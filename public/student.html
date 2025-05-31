@@ -175,28 +175,38 @@ async function init() {
     
     // Submit attendance
     async function submitAttendance() {
-        const studentID = studentSelect.value;
-        
-        if (!studentID) {
-            showAlert('Please select your name', 'red');
-            return;
-        }
-        
+    const studentID = studentSelect.value;
+    if (!studentID) {
+        showAlert('Please select your name', 'red');
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        showAlert('Geolocation is not supported by your browser', 'red');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Requesting location...';
+
+    navigator.geolocation.getCurrentPosition(async position => {
+        const { latitude, longitude } = position.coords;
+
         try {
-            submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
-            
+
             const res = await fetch('/student/submit-attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentID, date, subject, deviceId })
+                body: JSON.stringify({ studentID, date, subject, deviceId, latitude, longitude })
             });
+
             const data = await res.json();
-            
+
             if (res.ok) {
                 attendanceForm.classList.add('hidden');
                 successMessage.classList.remove('hidden');
-                showAlert('', ''); // Clear alert
+                showAlert('', '');
             } else {
                 showAlert(data.message || 'Error submitting attendance', 'red');
                 submitBtn.disabled = false;
@@ -207,7 +217,17 @@ async function init() {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit Attendance';
         }
-    }
+    }, error => {
+        let msg = 'Error retrieving location.';
+        if (error.code === 1) msg = 'Please enable location access to mark attendance.';
+        else if (error.code === 2) msg = 'Location unavailable. Try again.';
+        else if (error.code === 3) msg = 'Location request timed out.';
+        showAlert(msg, 'red');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Attendance';
+    });
+}
+
     
     // Show alert message
     function showAlert(message, color) {

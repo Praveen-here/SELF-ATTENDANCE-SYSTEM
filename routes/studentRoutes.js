@@ -40,14 +40,34 @@ router.get('/attendance-students', async (req, res) => {
 // Submit attendance with duplicate check
 router.post("/submit-attendance", async (req, res) => {
     try {
-        const { studentID, date, subject, deviceId } = req.body;
+        const { studentID, date, subject, deviceId, latitude, longitude } = req.body;
 
-        if (!studentID || !date || !subject || !deviceId) {
+        if (!studentID || !date || !subject || !deviceId || !latitude || !longitude) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
         const student = await Student.findOne({ studentID });
         if (!student) return res.status(404).json({ message: "Student not found" });
+
+        const centerLat = parseFloat(process.env.CAMPUS_CENTER_LAT);
+        const centerLng = parseFloat(process.env.CAMPUS_CENTER_LNG);
+        const radiusMeters = parseFloat(process.env.CAMPUS_RADIUS_METERS);
+
+        // Haversine formula
+        const toRad = deg => (deg * Math.PI) / 180;
+        const earthRadius = 6371000; // meters
+
+        const dLat = toRad(latitude - centerLat);
+        const dLng = toRad(longitude - centerLng);
+        const a = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(toRad(centerLat)) * Math.cos(toRad(latitude)) *
+                  Math.sin(dLng / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = earthRadius * c;
+
+        if (distance > radiusMeters) {
+            return res.status(403).json({ message: "You are not in campus range to mark attendance." });
+        }
 
         const attendance = new Attendance({
             date,
@@ -56,8 +76,7 @@ router.post("/submit-attendance", async (req, res) => {
             deviceId
         });
 
-        await attendance.save(); // Let MongoDB handle uniqueness
-
+        await attendance.save();
         res.json({ success: true, message: "Attendance submitted successfully" });
 
     } catch (error) {
@@ -68,8 +87,6 @@ router.post("/submit-attendance", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
-
-
 
 
 // New route: Check if attendance already submitted
